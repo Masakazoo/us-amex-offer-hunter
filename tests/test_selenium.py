@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Optional
 
+from pathlib import Path
+
 import pytest
 from selenium.webdriver.chrome.webdriver import WebDriver
 
@@ -47,8 +49,6 @@ def make_settings(targets: Optional[list[int]] = None) -> Settings:
 
 
 def test_offer_detector_finds_target_amount(monkeypatch: pytest.MonkeyPatch) -> None:
-    from pathlib import Path
-
     settings = make_settings([300000])
     engine = DummyEngine(settings=settings, body_text="Congratulations, you are pre-approved for 300000 points!")
     detector = OfferDetector(engine=engine)
@@ -59,8 +59,6 @@ def test_offer_detector_finds_target_amount(monkeypatch: pytest.MonkeyPatch) -> 
 
 
 def test_offer_detector_handles_no_match() -> None:
-    from pathlib import Path
-
     settings = make_settings([300000])
     engine = DummyEngine(settings=settings, body_text="No bonus for you today.")
     detector = OfferDetector(engine=engine)
