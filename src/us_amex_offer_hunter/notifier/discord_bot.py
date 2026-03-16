@@ -9,11 +9,10 @@ from discord import Client, Intents, TextChannel
 from core.settings import Settings
 from us_amex_offer_hunter.notifier.base import NotifierProtocol
 
-
 logger = structlog.get_logger(__name__)
 
 
-class DiscordNotifier(NotifierProtocol):
+class DiscordNotifier(NotifierProtocol):  # type: ignore[misc]
     """Discord-based notifier with simple retry logic."""
 
     def __init__(self, settings: Settings) -> None:
@@ -27,7 +26,9 @@ class DiscordNotifier(NotifierProtocol):
     def notify_error(self, message: str) -> None:
         self._send_with_retries(f"[ERROR] {message}")
 
-    def _send_with_retries(self, message: str, max_retries: int = 3, delay_seconds: float = 1.0) -> None:
+    def _send_with_retries(
+        self, message: str, max_retries: int = 3, delay_seconds: float = 1.0
+    ) -> None:
         for attempt in range(1, max_retries + 1):
             try:
                 self._send_message_sync(message)
@@ -49,7 +50,7 @@ class DiscordNotifier(NotifierProtocol):
         channel_id = self._channel_id
 
         @client.event
-        async def on_ready() -> None:  # type: ignore[override]
+        async def on_ready() -> None:
             channel = client.get_channel(channel_id)
             if isinstance(channel, TextChannel):
                 await channel.send(message)
@@ -59,4 +60,3 @@ class DiscordNotifier(NotifierProtocol):
 
 
 __all__: List[str] = ["DiscordNotifier"]
-

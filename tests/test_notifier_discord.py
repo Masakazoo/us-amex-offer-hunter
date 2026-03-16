@@ -1,20 +1,17 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import List
-
-import pytest
 
 from core.settings import AppConfig, DiscordSettings, ProxySettings, Settings
 from us_amex_offer_hunter.notifier.discord_bot import DiscordNotifier
 
 
-class DummyDiscordNotifier(DiscordNotifier):
+class DummyDiscordNotifier(DiscordNotifier):  # type: ignore[misc]
     def __init__(self, settings: Settings) -> None:
         super().__init__(settings)
         self.sent_messages: List[str] = []
 
-    def _send_message_sync(self, message: str) -> None:  # type: ignore[override]
+    def _send_message_sync(self, message: str) -> None:
         self.sent_messages.append(message)
 
 
@@ -28,7 +25,7 @@ def make_settings() -> Settings:
         urls=["https://example.com"],
         targets=[300000],
     )
-    return Settings(config_path=Path("dummy"), config=app_cfg)  # type: ignore[arg-type]
+    return Settings(config=app_cfg)
 
 
 def test_discord_notifier_sends_offer_message() -> None:
@@ -47,4 +44,3 @@ def test_discord_notifier_sends_error_message() -> None:
     notifier.notify_error("Something went wrong")
 
     assert any(msg.startswith("[ERROR]") for msg in notifier.sent_messages)
-

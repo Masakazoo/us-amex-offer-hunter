@@ -2,10 +2,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from pathlib import Path
-
 import pytest
-from selenium.webdriver.chrome.webdriver import WebDriver
 
 from core.settings import AppConfig, DiscordSettings, ProxySettings, Settings
 from us_amex_offer_hunter.core.engine import OfferDetector, OfferResult, SeleniumEngine
@@ -18,7 +15,7 @@ class DummyDriver:
     def get(self, url: str) -> None:  # pragma: no cover - no-op
         _ = url
 
-    def find_elements(self, by: str, value: str):  # type: ignore[override]
+    def find_elements(self, by: str, value: str) -> list[object]:
         class Element:
             def __init__(self, text: str) -> None:
                 self.text = text
@@ -29,10 +26,10 @@ class DummyDriver:
         return
 
 
-class DummyEngine(SeleniumEngine):
+class DummyEngine(SeleniumEngine):  # type: ignore[misc]
     def __init__(self, settings: Settings, body_text: str) -> None:
         self._settings = settings
-        self._driver = DummyDriver(body_text=body_text)  # type: ignore[assignment]
+        self._driver = DummyDriver(body_text=body_text)
 
 
 def make_settings(targets: Optional[list[int]] = None) -> Settings:
@@ -45,12 +42,14 @@ def make_settings(targets: Optional[list[int]] = None) -> Settings:
         urls=["https://example.com"],
         targets=targets or [300000, 250000],
     )
-    return Settings(config_path=Path("dummy"), config=app_cfg)  # type: ignore[arg-type]
+    return Settings(config=app_cfg)
 
 
 def test_offer_detector_finds_target_amount(monkeypatch: pytest.MonkeyPatch) -> None:
     settings = make_settings([300000])
-    engine = DummyEngine(settings=settings, body_text="Congratulations, you are pre-approved for 300000 points!")
+    engine = DummyEngine(
+        settings=settings, body_text="Congratulations, you are pre-approved for 300000 points!"
+    )
     detector = OfferDetector(engine=engine)
 
     result: OfferResult = detector.check_offer("https://example.com")
@@ -66,4 +65,3 @@ def test_offer_detector_handles_no_match() -> None:
     result: OfferResult = detector.check_offer("https://example.com")
     assert result.found is False
     assert result.amount is None
-

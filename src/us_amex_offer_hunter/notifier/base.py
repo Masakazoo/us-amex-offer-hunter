@@ -14,4 +14,3 @@ class NotifierProtocol(Protocol):
 
 
 __all__ = ["NotifierProtocol"]
-

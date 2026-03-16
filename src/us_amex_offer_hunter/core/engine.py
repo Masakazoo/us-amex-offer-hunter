@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 import structlog
 from selenium import webdriver
@@ -10,7 +10,6 @@ from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.common.by import By
 
 from core.settings import Settings
-
 
 logger = structlog.get_logger(__name__)
 
@@ -99,4 +98,3 @@ class OfferDetector:
 
 
 __all__: List[str] = ["SeleniumEngine", "OfferDetector", "OfferResult"]
-

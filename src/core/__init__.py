@@ -9,4 +9,3 @@ Cursor project layout, while the actual implementation lives under
 from us_amex_offer_hunter.core.engine import OfferDetector, SeleniumEngine
 
 __all__ = ["OfferDetector", "SeleniumEngine"]
-
