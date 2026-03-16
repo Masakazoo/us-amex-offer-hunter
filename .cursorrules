@@ -1,0 +1,8 @@
+* ベース構造は `karaage0703/python-boilerplate` / python-boilerplate-llm を参考にするが、Amex Offer Hunter にとってより良いベストプラクティスがあれば積極的に提案・採用すること
+* すべての新規/変更Pythonコードに型ヒントを付与し、mypy strict 設定でエラーが出ないようにすること
+* すべての公開関数・メソッド・クラスに docstring を付与すること
+* pytest テストを可能な限り自動生成し、主要コンポーネントでは 80% 以上のカバレッジを目標とすること
+* 設定は `config.yaml` を単一のソースオブトゥルースとし、pydantic Settings から読み込むこと
+* ログは `structlog` を用いて構造化し、すべての例外はキャッチして Discord（将来的には Telegram も）へ通知できる経路を用意すること
+* プロキシ関連のエラー発生時は、少なくとも 3 回の自動リトライを行う設計とすること
+
