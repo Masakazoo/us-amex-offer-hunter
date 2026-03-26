@@ -85,6 +85,27 @@ python -m us_amex_offer_hunter.cli.main --notify-test
 
 Discord の対象チャンネルに「Amex Offer Hunter Discord test notification」が届けば、通知経路は正常です。
 
+### 3. 検証専用モード（非通知）
+
+BAN リスクを抑えた段階検証向けに、通知なしで URL 訪問と金額抽出だけを確認できます。
+
+```bash
+# 1回だけ検証
+make verify-once
+
+# 低頻度ループ検証（既定: 5回、45秒間隔）
+make verify-loop
+```
+
+CLI 直実行の場合:
+
+```bash
+python -m us_amex_offer_hunter.cli.main --verify-once
+python -m us_amex_offer_hunter.cli.main --verify-loop --iterations 5 --interval-sec 45
+```
+
+検証結果は `runs/verify_amounts.jsonl` に JSONL 形式で追記されます。
+
 ---
 
 ## 品質チェック（format / lint / test 一括）

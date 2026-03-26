@@ -67,3 +67,16 @@ def test_offer_detector_handles_no_match() -> None:
     result: OfferResult = detector.check_offer("https://example.com")
     assert result.found is False
     assert result.amount is None
+
+
+def test_offer_detector_parses_comma_separated_amount() -> None:
+    settings = make_settings([200000])
+    engine = DummyEngine(
+        settings=settings,
+        body_text="Limited time offer: Earn up to 200,000 Membership Rewards points.",
+    )
+    detector = OfferDetector(engine=engine)
+
+    result: OfferResult = detector.check_offer("https://example.com")
+    assert result.found is True
+    assert result.amount == 200000

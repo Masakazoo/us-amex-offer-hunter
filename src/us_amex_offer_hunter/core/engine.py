@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from typing import List, Optional
 
 import structlog
@@ -85,11 +86,16 @@ class OfferDetector:
             return OfferResult(url=url, found=False, amount=None, raw_text="")
 
     def _extract_amount(self, text: str) -> Optional[int]:
-        """Extract an offer amount from raw text; placeholder implementation."""
-        digits: List[str] = [token for token in text.split() if token.isdigit()]
-        for token in digits:
+        """Extract a target offer amount from raw text.
+
+        Supports plain and comma-separated numbers, such as ``300000`` and ``300,000``.
+        """
+        number_pattern = re.compile(r"\b\d{1,3}(?:,\d{3})+\b|\b\d+\b")
+        candidates: List[str] = number_pattern.findall(text)
+        for token in candidates:
+            normalized = token.replace(",", "")
             try:
-                value = int(token)
+                value = int(normalized)
             except ValueError:
                 continue
             if value in self._targets:
