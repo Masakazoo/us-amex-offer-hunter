@@ -1,0 +1,20 @@
+proxies:
+  provider: proxyrack
+  api_key: ""
+  country: "US"
+
+discord:
+  bot_token: ""
+  channel_id: ""
+
+telegram:
+  bot_token: ""
+  chat_id: ""
+
+urls:
+  - "https://example.com"
+
+targets:
+  - 300000
+  - 250000
+

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import List
 
 from core.settings import AppConfig, DiscordSettings, ProxySettings, Settings
@@ -25,7 +26,9 @@ def make_settings() -> Settings:
         urls=["https://example.com"],
         targets=[300000],
     )
-    return Settings(config=app_cfg)
+    return Settings(
+        config_path=Path("config.yaml"), dotenv_path=Path(".env"), config=app_cfg
+    )
 
 
 def test_discord_notifier_sends_offer_message() -> None:

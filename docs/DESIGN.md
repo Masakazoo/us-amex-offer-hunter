@@ -8,7 +8,7 @@
 
 - **目的**: Amex Business Platinum などの高額オファー（例: 300k / 250k ポイント）を自動検知し、「どの条件で当たりやすいか」を統計的に分析する。
 - **構成要素（MVP 時点）**:
-  - `core.settings.Settings`: 設定管理（`.env` / 環境変数）
+  - `core.settings.Settings`: 設定管理（`config.yaml` + `.env` / 環境変数）
   - `us_amex_offer_hunter.core.SeleniumEngine`: Selenium WebDriver ラッパー
   - `us_amex_offer_hunter.core.OfferDetector`: ページ内容からオファー金額を抽出するドメインロジック
   - `us_amex_offer_hunter.notifier.DiscordNotifier`: Discord 通知
@@ -22,14 +22,37 @@
 4. ターゲット金額 (`config.targets`) にマッチしたら `DiscordNotifier` で通知。
 5. 処理終了時に WebDriver をクリーンアップ。
 
+### 1.1 アーキテクチャ図（MVP）
+
+```mermaid
+flowchart TD
+    U[User / Cron] --> CLI[CLI: us_amex_offer_hunter.cli.main]
+    CLI -->|run_once| S[Settings.load]
+
+    C[config.yaml<br/>non-secret config] --> S
+    E[.env / ENV<br/>secrets override] --> S
+
+    S --> ENG[SeleniumEngine]
+    S --> DET[OfferDetector]
+    S --> NTF[DiscordNotifier]
+
+    ENG --> WD[(Chrome WebDriver)]
+    DET -->|uses| WD
+    DET --> RES{Target Offer Found?}
+    RES -->|Yes| NTF
+    RES -->|No| LOG[structlog]
+    NTF --> DC[(Discord Channel)]
+```
+
 ---
 
 ## 2. 設定管理 (`core.settings`)
 
 - **役割**: アプリケーション全体の設定を 1 箇所で表現し、型付きで扱う。
 - **技術スタック**:
-  - `pydantic-settings` (`BaseSettings`)
-  - `.env` / 環境変数によるロード
+  - `pydantic` による設定モデル（型付き）
+  - `PyYAML` による `config.yaml` ロード
+  - `.env` / 環境変数による上書き（秘匿値）
 
 ### 2.1 モデル構造
 
@@ -47,8 +70,8 @@
 
 ### 2.2 ロード順序
 
-1. `.env` とプロセス環境変数から `US_AMEX_OFFER_HUNTER_` プレフィックス付きの値を読み込む。
-2. ネスト構造（`CONFIG__PROXIES__PROVIDER` など）を展開して `AppConfig` にマッピング。
+1. `config.yaml` を読み込み、`AppConfig` としてバリデーションする。
+2. `.env` / プロセス環境変数（`US_AMEX_OFFER_HUNTER_CONFIG__...`）で上書きを適用する（秘匿値が主用途）。
 
 ---
 

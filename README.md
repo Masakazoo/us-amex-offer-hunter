@@ -38,24 +38,25 @@ make install-dev
 
 ---
 
-## 設定（.env）
+## 設定（config.yaml + .env）
 
-設定は **`.env` / 環境変数のみ** から読み込みます。雛形として `.env.sample` を用意しています。
+設定は **`config.yaml`（非秘匿）** を読み込み、秘匿値（トークン/キー）は **`.env` / 環境変数で上書き**します。雛形として `config.yaml` と `.env.sample` を用意しています。
 
 ```bash
 cp .env.sample .env
 ```
 
-`.env` には少なくとも以下を設定します:
+### config.yaml（非秘匿）
+
+`config.yaml` には URL や targets などの「秘匿ではない設定」を置きます。
+
+### .env（秘匿）
+
+`.env` には秘匿値だけを設定します（例）:
 
 ```env
-US_AMEX_OFFER_HUNTER_CONFIG__PROXIES__PROVIDER=proxyrack
 US_AMEX_OFFER_HUNTER_CONFIG__PROXIES__API_KEY=YOUR_PROXY_API_KEY
-US_AMEX_OFFER_HUNTER_CONFIG__PROXIES__COUNTRY=US
 US_AMEX_OFFER_HUNTER_CONFIG__DISCORD__BOT_TOKEN=YOUR_DISCORD_BOT_TOKEN
-US_AMEX_OFFER_HUNTER_CONFIG__DISCORD__CHANNEL_ID=YOUR_DISCORD_CHANNEL_ID
-US_AMEX_OFFER_HUNTER_CONFIG__URLS__0=https://example.com
-US_AMEX_OFFER_HUNTER_CONFIG__TARGETS__0=300000
 ```
 
 > ⚠️ Discord Bot Token や Proxy API Key は **必ず `.env` のみに記述**し、リポジトリには含めないでください。
@@ -72,7 +73,7 @@ US_AMEX_OFFER_HUNTER_CONFIG__TARGETS__0=300000
 python -m us_amex_offer_hunter.cli.main
 ```
 
-`.env` で指定した `URLS` / `TARGETS` に基づき、Amex ページを 1 巡し、ヒットがあれば Discord に通知します。
+`config.yaml`（必要に応じて `.env` 上書き）に基づき、Amex ページを 1 巡し、ヒットがあれば Discord に通知します。
 
 ### 2. Discord テスト通知
 
@@ -96,7 +97,7 @@ make check
 
 内訳:
 
-- `black` / `isort` によるコード整形
+- `ruff format` によるコード整形
 - `ruff` による Lint
 - `mypy --strict` による型チェック
 - `pytest` によるテスト実行

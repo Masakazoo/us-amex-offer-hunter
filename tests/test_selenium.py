@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Optional
 
 import pytest
@@ -42,13 +43,16 @@ def make_settings(targets: Optional[list[int]] = None) -> Settings:
         urls=["https://example.com"],
         targets=targets or [300000, 250000],
     )
-    return Settings(config=app_cfg)
+    return Settings(
+        config_path=Path("config.yaml"), dotenv_path=Path(".env"), config=app_cfg
+    )
 
 
 def test_offer_detector_finds_target_amount(monkeypatch: pytest.MonkeyPatch) -> None:
     settings = make_settings([300000])
     engine = DummyEngine(
-        settings=settings, body_text="Congratulations, you are pre-approved for 300000 points!"
+        settings=settings,
+        body_text="Congratulations, you are pre-approved for 300000 points!",
     )
     detector = OfferDetector(engine=engine)
 

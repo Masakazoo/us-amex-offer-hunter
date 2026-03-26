@@ -40,7 +40,9 @@ class SeleniumEngine:
         proxy = self._settings.config.proxies
         if proxy.api_key:
             # NOTE: ProxyManager integration will be wired here later.
-            logger.info("configuring_proxy", provider=proxy.provider, country=proxy.country)
+            logger.info(
+                "configuring_proxy", provider=proxy.provider, country=proxy.country
+            )
 
         try:
             driver = webdriver.Chrome(options=options)
@@ -63,7 +65,9 @@ class SeleniumEngine:
 class OfferDetector:
     """High-level offer detection logic built on SeleniumEngine."""
 
-    def __init__(self, engine: SeleniumEngine, targets: Optional[List[int]] = None) -> None:
+    def __init__(
+        self, engine: SeleniumEngine, targets: Optional[List[int]] = None
+    ) -> None:
         self._engine = engine
         self._targets = targets or self._engine._settings.config.targets
 

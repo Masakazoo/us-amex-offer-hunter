@@ -19,8 +19,9 @@
 **いま手元で試しておくと良い実機検証（2025-03 時点）:**
 
 - **設定の動作確認**
-  - `.env` を `.env.sample` からコピーし、自身の Discord Bot / Channel ID / URL / targets にあわせて書き換える。
-  - `pytest tests/test_settings.py` で環境変数ベースの設定ロードが成功することを確認する。
+  - `config.yaml` を自身の URL / targets / channel_id にあわせて調整する（秘匿は入れない）。
+  - `.env` を `.env.sample` からコピーし、Bot Token / Proxy API Key などの秘匿を設定する。
+  - `pytest tests/test_settings.py` で「YAML + env上書き」の設定ロードが成功することを確認する。
 
 - **pytest による基本動作の検証**
   - `pytest -q` でユニットテストが通ることを確認する。

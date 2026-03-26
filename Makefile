@@ -1,6 +1,10 @@
 PYTHON ?= python
 UV ?= uv
 
+ifneq ("$(wildcard .venv/bin/python)","")
+PYTHON := .venv/bin/python
+endif
+
 .PHONY: install install-dev format lint test check coverage
 
 install:
@@ -10,8 +14,7 @@ install-dev: install
 	$(UV) pip install -e .
 
 format:
-	$(PYTHON) -m black src tests
-	$(PYTHON) -m isort src tests
+	$(PYTHON) -m ruff format src tests
 
 lint:
 	$(PYTHON) -m ruff check src tests
