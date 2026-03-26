@@ -46,17 +46,13 @@ class AppConfig(BaseModel):
 class Settings(BaseModel):
     """Application settings loaded from config.yaml and overridden by .env/environment."""
 
-    config_path: Path = Field(
-        default=Path("config.yaml"), description="Path to YAML config file."
-    )
+    config_path: Path = Field(default=Path("config.yaml"), description="Path to YAML config file.")
     dotenv_path: Path = Field(default=Path(".env"), description="Path to .env file.")
 
     config: AppConfig
 
     @classmethod
-    def load(
-        cls, config_path: Optional[Path] = None, dotenv_path: Optional[Path] = None
-    ) -> "Settings":
+    def load(cls, config_path: Optional[Path] = None, dotenv_path: Optional[Path] = None) -> "Settings":
         """Load settings from config.yaml and override secrets via .env/environment variables."""
         resolved_config_path = config_path or Path("config.yaml")
         resolved_dotenv_path = dotenv_path or Path(".env")
@@ -100,9 +96,7 @@ def _load_yaml(path: Path) -> Dict[str, Any]:
         raise RuntimeError(f"Failed to parse YAML config: {path}") from exc
 
     if not isinstance(raw, dict):
-        raise RuntimeError(
-            f"Invalid YAML root type: expected mapping, got {type(raw).__name__}"
-        )
+        raise RuntimeError(f"Invalid YAML root type: expected mapping, got {type(raw).__name__}")
 
     return raw
 

@@ -43,9 +43,7 @@ def make_settings(targets: Optional[list[int]] = None) -> Settings:
         urls=["https://example.com"],
         targets=targets or [300000, 250000],
     )
-    return Settings(
-        config_path=Path("config.yaml"), dotenv_path=Path(".env"), config=app_cfg
-    )
+    return Settings(config_path=Path("config.yaml"), dotenv_path=Path(".env"), config=app_cfg)
 
 
 def test_offer_detector_finds_target_amount(monkeypatch: pytest.MonkeyPatch) -> None:

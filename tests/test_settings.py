@@ -7,9 +7,7 @@ import pytest
 from core.settings import Settings
 
 
-def test_settings_loads_yaml_and_overrides_secrets_from_env(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_settings_loads_yaml_and_overrides_secrets_from_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     cfg = tmp_path / "config.yaml"
     cfg.write_text(
         """
@@ -36,9 +34,7 @@ targets:
     )
 
     monkeypatch.setenv("US_AMEX_OFFER_HUNTER_CONFIG__PROXIES__API_KEY", "KEY")
-    monkeypatch.setenv(
-        "US_AMEX_OFFER_HUNTER_CONFIG__DISCORD__BOT_TOKEN", "DISCORD_TOKEN"
-    )
+    monkeypatch.setenv("US_AMEX_OFFER_HUNTER_CONFIG__DISCORD__BOT_TOKEN", "DISCORD_TOKEN")
 
     settings = Settings.load(config_path=cfg, dotenv_path=tmp_path / ".env")
 
