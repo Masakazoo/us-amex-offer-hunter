@@ -24,8 +24,7 @@ def test_app_calls_run_once(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_main_cli_dispatches_verify_once(monkeypatch: pytest.MonkeyPatch) -> None:
     called: List[str] = []
 
-    def fake_verify_once(*, log_path: object = None) -> None:
-        _ = log_path
+    def fake_verify_once(**_kwargs: object) -> None:
         called.append("verify_once")
 
     monkeypatch.setattr(main, "run_verify_once", fake_verify_once)

@@ -29,6 +29,10 @@ urls:
 
 targets:
   - 300000
+selenium:
+  headless: true
+  disable_automation_flags: true
+  user_agent: ""
 """.lstrip(),
         encoding="utf-8",
     )
@@ -43,3 +47,4 @@ targets:
     assert settings.config.discord.bot_token == "DISCORD_TOKEN"
     assert settings.config.urls == ["https://example.com"]
     assert settings.config.targets == [300000]
+    assert settings.config.selenium.headless is True

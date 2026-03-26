@@ -33,12 +33,21 @@ class TelegramSettings(BaseModel):
     chat_id: str
 
 
+class SeleniumSettings(BaseModel):
+    """Selenium runtime settings for verification experiments."""
+
+    headless: bool = True
+    disable_automation_flags: bool = True
+    user_agent: Optional[str] = None
+
+
 class AppConfig(BaseModel):
     """Top-level config model."""
 
     proxies: ProxySettings
     discord: DiscordSettings
     telegram: Optional[TelegramSettings] = None
+    selenium: SeleniumSettings = Field(default_factory=SeleniumSettings)
     urls: List[str]
     targets: List[int]
 
@@ -80,6 +89,7 @@ __all__ = [
     "ProxySettings",
     "DiscordSettings",
     "TelegramSettings",
+    "SeleniumSettings",
 ]
 
 
