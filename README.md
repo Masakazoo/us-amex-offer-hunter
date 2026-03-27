@@ -59,6 +59,18 @@ US_AMEX_OFFER_HUNTER_CONFIG__PROXIES__API_KEY=YOUR_PROXY_API_KEY
 US_AMEX_OFFER_HUNTER_CONFIG__DISCORD__BOT_TOKEN=YOUR_DISCORD_BOT_TOKEN
 ```
 
+### config.yaml を上書きする例（配列 / プレースホルダ）
+
+`config.yaml` の `urls` や `discord.channel_id` は ENV でも上書きできます。`urls` は JSON 配列文字列として渡してください。
+
+```env
+# URL一覧（JSON配列文字列）
+US_AMEX_OFFER_HUNTER_CONFIG__URLS='["https://example.com"]'
+
+# 通知先チャンネル（必要なら）
+US_AMEX_OFFER_HUNTER_CONFIG__DISCORD__CHANNEL_ID='1307613131626905712'
+```
+
 > ⚠️ Discord Bot Token や Proxy API Key は **必ず `.env` のみに記述**し、リポジトリには含めないでください。
 
 ---

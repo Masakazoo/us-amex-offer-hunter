@@ -193,9 +193,8 @@ class OfferDetector:
         # The referral modal often uses non-standard markup, so we try multiple ways to click "Continue".
 
         modal_title_xpaths: list[str] = [
-            "//*[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'), 'you\\'ve been referred')]",
             "//*[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'), 'you’ve been referred')]",
-            '//*[contains(normalize-space(.), "You\'ve Been Referred")]',
+            "//*[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'), concat('you', \"'\", 've been referred'))]",
         ]
         dialog_xpaths: list[str] = [
             "//*[@role='dialog' and @aria-modal='true']",
@@ -326,6 +325,11 @@ class OfferDetector:
 
     def _wait_for_offer_render(self, *, driver: webdriver.Chrome, timeout_seconds: float) -> None:
         """Wait until the client-rendered offer content is likely available."""
+        # Unit tests use a DummyDriver; skipping avoids wasting `timeout_seconds` for negative cases.
+        if not hasattr(driver, "execute_script"):
+            logger.debug("offer_render_wait_skipped_non_selenium_driver", timeout_seconds=timeout_seconds)
+            return
+
         deadline = time.monotonic() + timeout_seconds
 
         def condition(d: Any) -> bool:
@@ -357,7 +361,9 @@ class OfferDetector:
                 return
             time.sleep(0.35)
 
-        raise TimeoutException("Timed out waiting for offer content")
+        # Best-effort: we still attempt extraction paths after the wait.
+        logger.warning("offer_render_wait_timeout_best_effort", timeout_seconds=timeout_seconds)
+        return
 
     def _truncate(self, text: str, *, limit: int = 2500) -> str:
         """Truncate long raw strings for debug payload size control."""

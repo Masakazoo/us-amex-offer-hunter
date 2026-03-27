@@ -5,7 +5,7 @@ proxies:
 
 discord:
   bot_token: ""
-  channel_id: "1307613131626905712"
+  channel_id: ""
 
 telegram:
   bot_token: ""
@@ -20,7 +20,7 @@ selenium:
   user_agent: ""
 
 urls:
-  - "https://www.americanexpress.com/en-us/referral/business/business-platinum-charge-card?CORID=H~A~N~S~I~M~N~w~h~k-1774524294632-787337&GENCODE=349993354373629&extlink=US-MGM-RAB-USEFULINKSL-copypaste-92-201279-K7I6%3A9948&ref=HANSIMNwhk&v=2&xl=cp10lg"
+  - "https://example.com"
 
 targets:
   - 300000
