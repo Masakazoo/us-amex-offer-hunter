@@ -112,6 +112,15 @@ make verify-once
 
 # 低頻度ループ検証（既定: 5回、45秒間隔）
 make verify-loop
+
+# 当たりが出たら即停止
+make verify-loop STOP_ON_HIT=1
+
+# 条件別サマリ表示（最新N件）
+make verify-summary LATEST=100
+
+# 条件A/B比較（2プロファイル）
+make verify-ab PROFILES="headed-default,headless-custom-ua" ITERATIONS=30 INTERVAL_SEC=45 COOLDOWN_SEC=300
 ```
 
 CLI 直実行の場合:
@@ -119,9 +128,13 @@ CLI 直実行の場合:
 ```bash
 python -m us_amex_offer_hunter.cli.main --verify-once
 python -m us_amex_offer_hunter.cli.main --verify-loop --iterations 5 --interval-sec 45
+python -m us_amex_offer_hunter.cli.main --verify-loop --iterations 50 --interval-sec 45 --stop-on-hit --profile headed-default
+python -m us_amex_offer_hunter.cli.main --verify-summary --verify-log-path runs/verify_amounts.jsonl --latest 100
 ```
 
 検証結果は `runs/verify_amounts.jsonl` に JSONL 形式で追記されます。
+
+`verify-loop` はヒット有無を終了コードに反映します（hit=0 / no-hit=1）。
 
 ---
 

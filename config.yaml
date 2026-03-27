@@ -19,6 +19,26 @@ selenium:
   disable_automation_flags: true
   user_agent: ""
 
+profiles:
+  headed-default:
+    label: headed-default
+    selenium:
+      headless: false
+      disable_automation_flags: true
+      user_agent: ""
+  headless-default:
+    label: headless-default
+    selenium:
+      headless: true
+      disable_automation_flags: true
+      user_agent: ""
+  headless-custom-ua:
+    label: headless-custom-ua
+    selenium:
+      headless: true
+      disable_automation_flags: true
+      user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+
 # 本番は .env の US_AMEX_OFFER_HUNTER_CONFIG__URLS で上書き
 urls:
   - "https://example.com"

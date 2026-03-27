@@ -156,3 +156,24 @@ def test_offer_detector_ignores_dollar_thresholds_for_target_matching() -> None:
     result: OfferResult = detector.check_offer("https://example.com")
     assert result.amount == 100000
     assert result.found is False
+
+
+def test_offer_detector_double_check_uses_fresh_engine(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = make_settings([200000])
+    original_engine = DummyEngine(settings=settings, body_text="No offer here.")
+    detector = OfferDetector(engine=original_engine)
+
+    class FreshEngine(DummyEngine):
+        def __init__(self, settings: Settings) -> None:
+            super().__init__(
+                settings=settings,
+                body_text="Earn 200,000 Membership Rewards points after eligible spend.",
+            )
+
+    monkeypatch.setattr("us_amex_offer_hunter.core.engine.SeleniumEngine", FreshEngine)
+
+    result = detector.double_check("https://example.com")
+    assert result.found is True
+    assert result.amount == 200000

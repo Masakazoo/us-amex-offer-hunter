@@ -95,7 +95,9 @@ flowchart TD
 - テスト通知: `--notify-test`
 - 検証実行（非通知）:
   - `--verify-once`
-  - `--verify-loop --iterations N --interval-sec S`
+  - `--verify-loop --iterations N --interval-sec S [--stop-on-hit]`
+  - `--verify-summary`
+  - `--verify-ab --profiles "profileA,profileB"`
 - デバッグダンプ:
   - `--dump-elements`
   - `--dump-page-source`
@@ -107,6 +109,15 @@ flowchart TD
 - `runs/verify_amounts.jsonl`
 - `runs/verify_elements.jsonl`
 - `runs/debug/iterXXX.*`
+
+検証ログ (`runs/verify_amounts.jsonl`) は以下を持つ:
+
+- `timestamp`, `iteration`, `url`, `found`, `amount`
+- `headless`, `user_agent`, `profile_name`, `condition_label`
+- `runtime.os`, `runtime.python_version`, `runtime.browser_version`
+
+`--stop-on-hit` 指定時は `found=true` を検知した時点で verify-loop を即時終了する。  
+`--notify-on-hit` を併用すると、fresh browser セッションで `double_check` して再度ヒットした場合のみ通知する。
 
 ---
 

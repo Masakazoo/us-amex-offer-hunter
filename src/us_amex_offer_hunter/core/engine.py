@@ -130,6 +130,15 @@ class OfferDetector:
             logger.error("offer_check_error", url=url, error=str(exc))
             return OfferResult(url=url, found=False, amount=None, raw_text="")
 
+    def double_check(self, url: str) -> OfferResult:
+        """Re-check the same URL in a fresh browser session for false-positive mitigation."""
+        retry_engine = SeleniumEngine(settings=self._engine._settings)
+        retry_detector = OfferDetector(engine=retry_engine, targets=list(self._targets))
+        try:
+            return retry_detector.check_offer(url)
+        finally:
+            retry_engine.close()
+
     def _extract_amount_with_retries(self, *, driver: webdriver.Chrome, timeout_seconds: float) -> tuple[Optional[int], str]:
         """Retry amount extraction from live DOM for a short window."""
         deadline = time.monotonic() + timeout_seconds

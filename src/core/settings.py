@@ -42,6 +42,15 @@ class SeleniumSettings(BaseModel):
     user_agent: Optional[str] = None
 
 
+class ConditionProfile(BaseModel):
+    """Named execution profile for condition-based verification runs."""
+
+    name: Optional[str] = None
+    label: Optional[str] = None
+    selenium: Optional[SeleniumSettings] = None
+    proxies: Optional[ProxySettings] = None
+
+
 class AppConfig(BaseModel):
     """Top-level config model."""
 
@@ -49,6 +58,7 @@ class AppConfig(BaseModel):
     discord: DiscordSettings
     telegram: Optional[TelegramSettings] = None
     selenium: SeleniumSettings = Field(default_factory=SeleniumSettings)
+    profiles: Dict[str, ConditionProfile] = Field(default_factory=dict)
     urls: List[str]
     targets: List[int]
 
@@ -91,6 +101,7 @@ __all__ = [
     "DiscordSettings",
     "TelegramSettings",
     "SeleniumSettings",
+    "ConditionProfile",
 ]
 
 

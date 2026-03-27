@@ -30,9 +30,7 @@
 
 | ID | Task | Priority | DoD | Note |
 |---|---|---|---|---|
-| N-01 | verify-loop の当たり時自動停止オプション実装 | P0 | `found=true` でループ停止し終了コード0 | CLI + Makefile対応 |
 | N-02 | headed運用の標準手順を `README.md` に反映 | P0 | 新規メンバーが手順だけで再現可能 | `headless=false` 前提 |
-| N-03 | verifyログのサマリコマンド追加（最新N件） | P1 | 1コマンドで成功率/直近amount確認 | Makefile target追加 |
 | N-04 | notify本番実行前のガード（dry-run確認フロー） | P1 | 誤通知なしで切替手順が明確 | 運用ルール |
 | N-05 | `make verify` の実行環境注記を docs 明記 | P1 | Cursor実行制約が明文化 | FAQ的に追記 |
 
@@ -79,6 +77,10 @@
 | D-02 | headed + retry 抽出で 200,000 検出 | `runs/verify_amounts.jsonl` で iteration 1-5 success |
 | D-03 | docs設計の現行実装反映 | `docs/DESIGN.md` 更新済み |
 | D-04 | 設定に Selenium runtime 追加 | `config.yaml` + `Settings` 反映済み |
+| D-05 | N-01: verify-loop 当たり時自動停止 | `--stop-on-hit` 追加、hit時即時終了 |
+| D-06 | N-03: verifyログのサマリコマンド | `make verify-summary` 追加 |
+| D-07 | L-02先行: 条件A/B比較ランナー最小実装 | `make verify-ab PROFILES=\"...\"` 追加 |
+| D-08 | 誤通知抑制の二重確認 | `--notify-on-hit` + fresh-session `double_check` |
 
 ---
 

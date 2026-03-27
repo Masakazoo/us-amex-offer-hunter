@@ -33,6 +33,13 @@ selenium:
   headless: true
   disable_automation_flags: true
   user_agent: ""
+profiles:
+  headed-default:
+    label: headed-default
+    selenium:
+      headless: false
+      disable_automation_flags: true
+      user_agent: ""
 """.lstrip(),
         encoding="utf-8",
     )
@@ -52,3 +59,8 @@ selenium:
     assert settings.config.urls == ["https://a.example", "https://b.example"]
     assert settings.config.targets == [300000]
     assert settings.config.selenium.headless is True
+    assert "headed-default" in settings.config.profiles
+    headed = settings.config.profiles["headed-default"]
+    assert headed.label == "headed-default"
+    assert headed.selenium is not None
+    assert headed.selenium.headless is False
