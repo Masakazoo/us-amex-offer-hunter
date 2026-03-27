@@ -19,6 +19,7 @@ selenium:
   disable_automation_flags: true
   user_agent: ""
 
+# 本番は .env の US_AMEX_OFFER_HUNTER_CONFIG__URLS で上書き
 urls:
   - "https://example.com"
 
