@@ -76,3 +76,13 @@
 - `devtools-mcp` はブラウザDOM確認・セレクタ検証・表示テキスト確認に使う（Selenium実装前の現地確認を優先）
 - `webfetch` はWebページ本文の取得・一次情報確認に使う（公式ドキュメントや公開ページの確認）
 - 調査結果を実装に反映する場合は、要点を短く説明してからコード変更を行うこと
+
+### 検証フロー（Amex Offer Hunter）
+
+- 検証時は以下の順で実行すること（原則）:
+  1. `make check`
+  2. `make verify` または `make verify-loop ITERATIONS=<回数> INTERVAL_SEC=<秒>`
+- `config.yaml` の `urls` はプレースホルダを維持し、実URLは `.env` の `US_AMEX_OFFER_HUNTER_CONFIG__URLS` で上書きすること
+- `US_AMEX_OFFER_HUNTER_CONFIG__URLS` は JSON 配列文字列で指定すること（例: `["https://example.com"]`）
+- オファー検証は `selenium.headless=false` を推奨設定とし、結果は `runs/verify_amounts.jsonl` を根拠として確認すること
+- 抽出が不安定な場合は `make verify-once-dump` を実行し、`runs/debug/` の `body_text` / `page_source` / `meta` を確認すること
