@@ -36,6 +36,11 @@ make install-dev
 - `requirements.txt` のインストール
 - パッケージ本体の editable インストール (`pip install -e .`)
 
+### 3. Docker / DevContainer（任意）
+
+`Dockerfile` と `docker-compose.yml` は DevContainer 用です。  
+通常のローカル検証（`make verify-*`）は `.venv` 運用で問題ありません。
+
 ---
 
 ## 設定（config.yaml + .env）
@@ -65,10 +70,10 @@ US_AMEX_OFFER_HUNTER_CONFIG__DISCORD__BOT_TOKEN=YOUR_DISCORD_BOT_TOKEN
 
 ```env
 # URL一覧（JSON配列文字列）
-US_AMEX_OFFER_HUNTER_CONFIG__URLS='["https://example.com"]'
+US_AMEX_OFFER_HUNTER_CONFIG__URLS=["https://example.com"]
 
 # 通知先チャンネル（必要なら）
-US_AMEX_OFFER_HUNTER_CONFIG__DISCORD__CHANNEL_ID='1307613131626905712'
+US_AMEX_OFFER_HUNTER_CONFIG__DISCORD__CHANNEL_ID=1307613131626905712
 ```
 
 > ⚠️ Discord Bot Token や Proxy API Key は **必ず `.env` のみに記述**し、リポジトリには含めないでください。
