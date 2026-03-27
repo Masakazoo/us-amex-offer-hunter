@@ -10,27 +10,34 @@ from us_amex_offer_hunter.core.engine import OfferDetector, OfferResult, Seleniu
 
 
 class DummyDriver:
-    def __init__(self, body_text: str) -> None:
+    def __init__(self, body_text: str, page_source: Optional[str] = None) -> None:
         self._body_text = body_text
+        self.page_source = page_source if page_source is not None else body_text
 
     def get(self, url: str) -> None:  # pragma: no cover - no-op
         _ = url
 
-    def find_elements(self, by: str, value: str) -> list[object]:
+    def find_element(self, by: str, value: str) -> object:
+        _ = (by, value)
+
         class Element:
             def __init__(self, text: str) -> None:
                 self.text = text
 
-        return [Element(self._body_text)]
+        return Element(self._body_text)
+
+    def find_elements(self, by: str, value: str) -> list[object]:
+        _ = (by, value)
+        return [self.find_element(by=by, value=value)]
 
     def quit(self) -> None:  # pragma: no cover - no-op
         return
 
 
 class DummyEngine(SeleniumEngine):  # type: ignore[misc]
-    def __init__(self, settings: Settings, body_text: str) -> None:
+    def __init__(self, settings: Settings, body_text: str, page_source: Optional[str] = None) -> None:
         self._settings = settings
-        self._driver = DummyDriver(body_text=body_text)
+        self._driver = DummyDriver(body_text=body_text, page_source=page_source)
 
 
 def make_settings(targets: Optional[list[int]] = None) -> Settings:
@@ -67,3 +74,85 @@ def test_offer_detector_handles_no_match() -> None:
     result: OfferResult = detector.check_offer("https://example.com")
     assert result.found is False
     assert result.amount is None
+
+
+def test_offer_detector_parses_comma_separated_amount() -> None:
+    settings = make_settings([200000])
+    engine = DummyEngine(
+        settings=settings,
+        body_text="Limited time offer: Earn up to 200,000 Membership Rewards points.",
+    )
+    detector = OfferDetector(engine=engine)
+
+    result: OfferResult = detector.check_offer("https://example.com")
+    assert result.found is True
+    assert result.amount == 200000
+
+
+def test_offer_detector_prefers_earn_points_over_points_back() -> None:
+    settings = make_settings([200000])
+    engine = DummyEngine(
+        settings=settings,
+        body_text=(
+            "Earn 200,000 Membership Rewards points after spend. "
+            "Get 35% points back up to 1,000,000 points back per calendar year."
+        ),
+    )
+    detector = OfferDetector(engine=engine)
+
+    result: OfferResult = detector.check_offer("https://example.com")
+    assert result.amount == 200000
+    assert result.found is True
+
+
+def test_offer_detector_parses_rewards_with_registered_mark_spacing() -> None:
+    settings = make_settings([200000])
+    engine = DummyEngine(
+        settings=settings,
+        body_text="Earn 200,000 Membership Rewards ® Points after eligible spend.",
+    )
+    detector = OfferDetector(engine=engine)
+
+    result: OfferResult = detector.check_offer("https://example.com")
+    assert result.amount == 200000
+    assert result.found is True
+
+
+def test_offer_detector_extracts_amount_even_when_not_target() -> None:
+    settings = make_settings([250000])
+    engine = DummyEngine(
+        settings=settings,
+        body_text="Earn 200,000 Membership Rewards points after eligible spend.",
+    )
+    detector = OfferDetector(engine=engine)
+
+    result: OfferResult = detector.check_offer("https://example.com")
+    assert result.found is False
+    assert result.amount == 200000
+
+
+def test_offer_detector_extracts_amount_from_initial_state() -> None:
+    settings = make_settings([200000])
+    # Simulate the real Amex style: window.__INITIAL_STATE__ assigned to a JSON string.
+    initial_state = 'window.__INITIAL_STATE__ = "Earn 200,000 Membership Rewards Points";'
+    engine = DummyEngine(settings=settings, body_text="", page_source=initial_state)
+    detector = OfferDetector(engine=engine)
+
+    result: OfferResult = detector.check_offer("https://example.com")
+    assert result.found is True
+    assert result.amount == 200000
+
+
+def test_offer_detector_ignores_dollar_thresholds_for_target_matching() -> None:
+    settings = make_settings([200000])
+    engine = DummyEngine(
+        settings=settings,
+        body_text=(
+            "Spend $200,000 in eligible purchases to unlock additional benefits. Earn 100,000 Membership Rewards points."
+        ),
+    )
+    detector = OfferDetector(engine=engine)
+
+    result: OfferResult = detector.check_offer("https://example.com")
+    assert result.amount == 100000
+    assert result.found is False

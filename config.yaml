@@ -11,10 +11,19 @@ telegram:
   bot_token: ""
   chat_id: ""
 
+selenium:
+  # Hypothesis testing:
+  # - headless: false  -> closer to devtools/browser behavior
+  # - disable_automation_flags: true -> reduce easy webdriver fingerprinting
+  headless: false
+  disable_automation_flags: true
+  user_agent: ""
+
+# 本番は .env の US_AMEX_OFFER_HUNTER_CONFIG__URLS で上書き
 urls:
   - "https://example.com"
 
 targets:
   - 300000
-  - 250000
+  - 200000
 

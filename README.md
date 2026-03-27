@@ -36,6 +36,11 @@ make install-dev
 - `requirements.txt` のインストール
 - パッケージ本体の editable インストール (`pip install -e .`)
 
+### 3. Docker / DevContainer（任意）
+
+`Dockerfile` と `docker-compose.yml` は DevContainer 用です。  
+通常のローカル検証（`make verify-*`）は `.venv` 運用で問題ありません。
+
 ---
 
 ## 設定（config.yaml + .env）
@@ -57,6 +62,18 @@ cp .env.sample .env
 ```env
 US_AMEX_OFFER_HUNTER_CONFIG__PROXIES__API_KEY=YOUR_PROXY_API_KEY
 US_AMEX_OFFER_HUNTER_CONFIG__DISCORD__BOT_TOKEN=YOUR_DISCORD_BOT_TOKEN
+```
+
+### config.yaml を上書きする例（配列 / プレースホルダ）
+
+`config.yaml` の `urls` や `discord.channel_id` は ENV でも上書きできます。`urls` は JSON 配列文字列として渡してください。
+
+```env
+# URL一覧（JSON配列文字列）
+US_AMEX_OFFER_HUNTER_CONFIG__URLS=["https://example.com"]
+
+# 通知先チャンネル（必要なら）
+US_AMEX_OFFER_HUNTER_CONFIG__DISCORD__CHANNEL_ID=1307613131626905712
 ```
 
 > ⚠️ Discord Bot Token や Proxy API Key は **必ず `.env` のみに記述**し、リポジトリには含めないでください。
@@ -84,6 +101,27 @@ python -m us_amex_offer_hunter.cli.main --notify-test
 ```
 
 Discord の対象チャンネルに「Amex Offer Hunter Discord test notification」が届けば、通知経路は正常です。
+
+### 3. 検証専用モード（非通知）
+
+BAN リスクを抑えた段階検証向けに、通知なしで URL 訪問と金額抽出だけを確認できます。
+
+```bash
+# 1回だけ検証
+make verify-once
+
+# 低頻度ループ検証（既定: 5回、45秒間隔）
+make verify-loop
+```
+
+CLI 直実行の場合:
+
+```bash
+python -m us_amex_offer_hunter.cli.main --verify-once
+python -m us_amex_offer_hunter.cli.main --verify-loop --iterations 5 --interval-sec 45
+```
+
+検証結果は `runs/verify_amounts.jsonl` に JSONL 形式で追記されます。
 
 ---
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -33,12 +34,21 @@ class TelegramSettings(BaseModel):
     chat_id: str
 
 
+class SeleniumSettings(BaseModel):
+    """Selenium runtime settings for verification experiments."""
+
+    headless: bool = True
+    disable_automation_flags: bool = True
+    user_agent: Optional[str] = None
+
+
 class AppConfig(BaseModel):
     """Top-level config model."""
 
     proxies: ProxySettings
     discord: DiscordSettings
     telegram: Optional[TelegramSettings] = None
+    selenium: SeleniumSettings = Field(default_factory=SeleniumSettings)
     urls: List[str]
     targets: List[int]
 
@@ -80,6 +90,7 @@ __all__ = [
     "ProxySettings",
     "DiscordSettings",
     "TelegramSettings",
+    "SeleniumSettings",
 ]
 
 
@@ -136,12 +147,30 @@ def _load_env_overlay(dotenv_path: Path) -> Dict[str, Any]:
         path_parts = [p.lower() for p in key[len(prefix) :].split("__") if p]
         if not path_parts:
             continue
-        _set_path(overlay, path_parts, value)
+        _set_path(overlay, path_parts, _maybe_parse_json_array(value))
 
     return overlay
 
 
-def _set_path(root: Dict[str, Any], parts: List[str], value: str) -> None:
+def _maybe_parse_json_array(value: str) -> Any:
+    """Parse JSON arrays from env overlay values when possible.
+
+    Example:
+      US_AMEX_OFFER_HUNTER_CONFIG__URLS='["https://a.example","https://b.example"]'
+    """
+    stripped = value.strip()
+    if not (stripped.startswith("[") and stripped.endswith("]")):
+        return value
+    try:
+        parsed: Any = json.loads(stripped)
+    except json.JSONDecodeError:
+        return value
+    if isinstance(parsed, list):
+        return parsed
+    return value
+
+
+def _set_path(root: Dict[str, Any], parts: List[str], value: Any) -> None:
     cur: Dict[str, Any] = root
     for part in parts[:-1]:
         next_obj = cur.get(part)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from typing import List
 
 import pytest
@@ -18,3 +19,17 @@ def test_app_calls_run_once(monkeypatch: pytest.MonkeyPatch) -> None:
     main.app()
 
     assert called == [True]
+
+
+def test_main_cli_dispatches_verify_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    called: List[str] = []
+
+    def fake_verify_once(**_kwargs: object) -> None:
+        called.append("verify_once")
+
+    monkeypatch.setattr(main, "run_verify_once", fake_verify_once)
+    monkeypatch.setattr(sys, "argv", ["prog", "--verify-once"])
+
+    main.main_cli()
+
+    assert called == ["verify_once"]

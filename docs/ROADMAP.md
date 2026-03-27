@@ -1,164 +1,100 @@
-## Amex Offer Hunter 開発ロードマップ
+## Amex Offer Hunter Executive Board
 
-本プロジェクトのゴールは、**Amex Business Platinum などの高額オファー検知を自動化し、統計的に「どの条件で当たりやすいか」を可視化する実験プラットフォーム**を作ることです。
-
-このドキュメントでは、MVP から実験プラットフォーム完成までのステップを段階的に整理します。
-
----
-
-## 0. 現状の実装と「いま出来る実機検証」
-
-すでに実装済みの主なコンポーネント:
-
-- `Settings` (`src/core/settings.py`)
-- `SeleniumEngine` / `OfferDetector` (`src/us_amex_offer_hunter/core/engine.py`)
-- `NotifierProtocol` / `DiscordNotifier` (`src/us_amex_offer_hunter/notifier/*`)
-- CLI エントリ (`src/us_amex_offer_hunter/cli/main.py`)
-- 基本的な pytest テスト
-
-**いま手元で試しておくと良い実機検証（2025-03 時点）:**
-
-- **設定の動作確認**
-  - `config.yaml` を自身の URL / targets / channel_id にあわせて調整する（秘匿は入れない）。
-  - `.env` を `.env.sample` からコピーし、Bot Token / Proxy API Key などの秘匿を設定する。
-  - `pytest tests/test_settings.py` で「YAML + env上書き」の設定ロードが成功することを確認する。
-
-- **pytest による基本動作の検証**
-  - `pytest -q` でユニットテストが通ることを確認する。
-  - Selenium 実機ブラウザは DummyDriver で疑似化されているため、ブラウザ起動なしでロジック部分の健全性を確認可能。
-
-- **Discord 通知の検証（トークンを設定できる場合）**
-  - `.env` に実際の Discord Bot Token / Channel ID を設定。
-  - `python -m us_amex_offer_hunter.cli.main --notify-test` でテスト通知が 1 通届くことを確認。
-  - 低レベルのインターフェース検証としては、`pytest tests/test_notifier_discord.py -q` も併用可能（ネットワーク I/O 自体はモック前提）。
+このドキュメントは、開発ディレクション用の「タスク管理ボード」です。  
+詳細設計は `docs/DESIGN.md` を参照し、このページでは **何をいつ進めるか**だけを管理します。
 
 ---
 
-## 1. MVP: 手動トリガー型 Offer チェッカー + Discord 通知
+## 1. Board ルール
 
-**目的:**  
-ローカルから手動でコマンドを叩くと、指定した Amex Offer ページにアクセスし、ターゲット金額があれば Discord に通知するところまでを完成させる。
-
-**要素:**
-
-- `SeleniumEngine` でヘッドレス Chrome を起動し、設定された `urls` を順番に巡回。
-- `OfferDetector` がページ内容からターゲット金額 (`targets`) を検出。
-- 見つかった場合、`DiscordNotifier` で指定チャンネルへ通知。
-- CLI から `us-amex-offer-hunter run-once` のような単発実行コマンドで動かす。
-
-**完了条件:**
-
-- ローカル環境でコマンド 1 発叩くと、Amex のテスト URL（あるいはスタブページ）にアクセスし、条件にマッチした場合だけ Discord に 1 通通知される。
-- すべての処理は構造化ログ（`structlog`）で追跡できる。
+- ステータスは `NOW / NEXT / LATER / BLOCKED / DONE` の5つで管理する
+- タスクは必ず `Priority / DoD` を持つ
+- DoD（Definition of Done）を満たしたら `DONE` に移動する
+- 実行根拠は `runs/*.jsonl` または CI 結果で残す
 
 ---
 
-## 2. SeleniumCore 強化（タイムアウト / リトライ / UA 切り替え）
+## 2. Executive Snapshot
 
-**目的:**  
-Amex 側のレスポンス遅延や一時的なエラーに対して頑健に動作するよう、Selenium レイヤを強化する。
-
-**主なタスク:**
-
-- `SeleniumEngine` に以下のパラメータを導入（`Settings` / `.env` 連携）:
-  - ページロードタイムアウト
-  - 要素検出タイムアウト
-  - 最大リトライ回数
-  - User-Agent の候補リスト / ランダム切り替え
-- Amex ページの DOM 構造を踏まえた安定セレクタの設計（実機観察に基づいて随時更新）。
-- `OfferDetector` で金額抽出ロジックを強化（`300,000`, `$300k`, `300 000` などフォーマット差異への対応）。
-- これら挙動をカバーするユニットテストの拡充。
-
-**完了条件:**
-
-- 一時的なネットワークエラーやタイムアウトで即失敗せず、規定回数リトライした上で結果を返す。
-- 異なる User-Agent 条件でも安定して DOM から金額を抽出できる。
+| Track | Goal | Status | Next Milestone | Risk |
+|---|---|---|---|---|
+| Detection | 200k/300k 抽出の安定運用 | In Progress | 10/10 連続成功 | headless差分 |
+| Operations | verify→notify運用の定着 | In Progress | 当たり時停止フロー | 誤通知 |
+| Reliability | 再試行/プロキシ/耐障害性 | Not Started | ProxyManager最小版 | 実装規模 |
+| Experiment | 条件比較と統計化 | Not Started | SQLite保存 | スキーマ未確定 |
+| Product | 可視化とマルチ通知 | Not Started | ダッシュボード雛形 | 優先度低 |
 
 ---
 
-## 3. ProxyManager 実装（`src/proxy/proxy_manager.py`）
+## 3. NOW（今週やる）
 
-**目的:**  
-ProxyRack などのプロキシプロバイダを抽象化し、IP ローテーションとヘルスチェックを一元管理する。
-
-**主なタスク:**
-
-- `ProxyManager` クラスを設計:
-  - ProxyRack API からプロキシを取得。
-  - レイテンシ / 成功率に基づくヘルスチェック。
-  - `get_next_proxy()` で「次に使うべきプロキシ」を返すインターフェース。
-- `SeleniumEngine` で「プロキシ情報を受け取って ChromeOptions に適用するフック」を実装。
-- プロキシエラー検知時に、**最低 3 回の自動リトライ**を行うロジックを `ProxyManager` 側で集中管理。
-- プロキシ利用有無を設定から制御可能にする。
-
-**完了条件:**
-
-- プロキシを ON にすると、IP ローテーションしながら Amex ページへアクセスできる。
-- プロキシエラー時には、設定された回数だけ自動で別 IP でのリトライが行われる。
+| ID | Task | Priority | DoD | Note |
+|---|---|---|---|---|
+| N-01 | verify-loop の当たり時自動停止オプション実装 | P0 | `found=true` でループ停止し終了コード0 | CLI + Makefile対応 |
+| N-02 | headed運用の標準手順を `README.md` に反映 | P0 | 新規メンバーが手順だけで再現可能 | `headless=false` 前提 |
+| N-03 | verifyログのサマリコマンド追加（最新N件） | P1 | 1コマンドで成功率/直近amount確認 | Makefile target追加 |
+| N-04 | notify本番実行前のガード（dry-run確認フロー） | P1 | 誤通知なしで切替手順が明確 | 運用ルール |
+| N-05 | `make verify` の実行環境注記を docs 明記 | P1 | Cursor実行制約が明文化 | FAQ的に追記 |
 
 ---
 
-## 4. StatsEngine / ExperimentRunner（実験プラットフォーム化）
+## 4. NEXT（次スプリント）
 
-**目的:**  
-「どの条件で当たりやすいか」を定量的に評価するため、試行ログを蓄積し、統計的な比較ができる状態にする。
-
-**主なタスク:**
-
-- SQLite ベースの簡易データベースを導入し、以下のカラムを持つテーブルを設計:
-  - 実行時刻、URL、使用プロキシ/IP、User-Agent、インターバル、結果（ヒット / ミス）、オファー額、エラー情報など。
-- `StatsEngine`:
-  - pandas DataFrame へのロード。
-  - 条件別の勝率（ヒット率）集計。
-  - 時系列での勝率推移計算。
-- `ExperimentRunner`:
-  - 「A/B/C それぞれの条件セット」を定義し、自動で試行をスケジューリング（apscheduler）する。
-  - 条件セットごとの試行結果を `StatsEngine` に渡す。
-- t 検定などを用いた有意差検証ユーティリティの実装。
-
-**完了条件:**
-
-- 「Proxy ON vs OFF」「UA ランダム vs 固定」などの条件で勝率に差があるかを数値で比較できる。
-- 少なくとも 2 群間の比較で p 値を算出し、「有意差あり / なし」の判断ができる。
+| ID | Task | Priority | DoD | Note |
+|---|---|---|---|---|
+| X-01 | ProxyManager 最小実装（ローテーション + 3回リトライ） | P1 | proxy ONでverifyが継続実行可能 | .cursorrules要件対応 |
+| X-02 | Seleniumのタイムアウト/再試行を設定化 | P1 | 設定だけで調整可能 | `config.yaml` 拡張 |
+| X-03 | amount抽出の回帰テスト拡充（実データ準拠） | P1 | 主要フォーマット網羅 | test fixture化 |
+| X-04 | 当たり検知時の通知メッセージ標準化 | P2 | URL/amount/timestamp統一 | Discord用 |
+| X-05 | エラー通知経路（最低Discord）を統合 | P2 | 致命エラー時に通知される | 監視性向上 |
 
 ---
 
-## 5. Dash UI（`app.py`）による可視化
+## 5. LATER（中期）
 
-**目的:**  
-Dashboard で実験結果をインタラクティブに閲覧できるようにする。
-
-**主なタスク:**
-
-- Plotly Dash ベースの Web UI を `app.py` として実装。
-- 画面例:
-  - 時系列での勝率推移グラフ。
-  - 条件別（Proxy, UA, インターバルなど）の勝率比較バーグラフ。
-  - 最新ヒット一覧（どの条件でどのオファー額が出たか）。
-- SQLite / `StatsEngine` からのデータ読み込みをバックエンドで行い、Dashboard に反映。
-
-**完了条件:**
-
-- ローカルで `python app.py` や `uvicorn app:app` 的なコマンドを実行すると、ブラウザで統計ダッシュボードを閲覧できる。
+| ID | Task | Priority | DoD | Note |
+|---|---|---|---|---|
+| L-01 | SQLite保存（試行ログ永続化） | P2 | verify結果がDBに保存される | jsonl併用可 |
+| L-02 | 条件A/B比較ランナー実装 | P2 | headless/UA/proxyの比較実行 | 実験基盤 |
+| L-03 | 集計モジュール（成功率/時系列） | P2 | レポート生成可能 | pandas想定 |
+| L-04 | TelegramNotifier 追加 | P3 | 設定でON/OFF可能 | NotifierProtocol準拠 |
+| L-05 | Dash可視化（最小版） | P3 | ヒット率グラフ表示 | 後回し可 |
 
 ---
 
-## 6. 通知チャネル拡張（TelegramNotifier など）
+## 6. BLOCKED（依存待ち）
 
-- `NotifierProtocol` を実装する `TelegramNotifier` を追加。
-- `config.yaml` の `telegram` セクションが有効な場合のみ初期化。
-- Discord/Telegram 両方へのマルチキャスト通知を行うラッパーを実装する。
-
-**完了条件:**
-
-- 通知チャネルを設定ファイルだけで追加・無効化できる。
-- 新たなチャネル追加（例: Slack）も `NotifierProtocol` 準拠で容易に行える。
+| ID | Task | Blocker | Action |
+|---|---|---|---|
+| B-01 | Proxyプロバイダ本番接続試験 | 実運用キー/制限確認 | キー確認後に再開 |
+| B-02 | 本番通知切替 | 運用ポリシー最終確認 | 手順レビュー後に実施 |
 
 ---
 
-## 7. 運用フェーズでのチェックリスト
+## 7. DONE（完了）
 
-- `pytest`, `mypy --strict`, `black`, `isort` が CI で自動実行される。
-- config のバリデーションエラーは**必ず** structlog で記録され、将来的には Discord/Telegram にも通知される。
-- プロキシ・Selenium・通知いずれかの障害でも、例外が握りつぶされずに必ずどこかのチャネルに届く設計になっている。
+| ID | Task | Evidence |
+|---|---|---|
+| D-01 | verify-loop の回数/間隔可変化 | `make verify-loop ITERATIONS=5 INTERVAL_SEC=5` 実行 |
+| D-02 | headed + retry 抽出で 200,000 検出 | `runs/verify_amounts.jsonl` で iteration 1-5 success |
+| D-03 | docs設計の現行実装反映 | `docs/DESIGN.md` 更新済み |
+| D-04 | 設定に Selenium runtime 追加 | `config.yaml` + `Settings` 反映済み |
+
+---
+
+## 8. KPI（週次確認）
+
+- `KPI-1`: 直近20回の `found=true` 率
+- `KPI-2`: 直近20回の `amount=200000` 一致率
+- `KPI-3`: verify 1回あたり平均所要時間
+- `KPI-4`: 通知エラー率（notify本番化後）
+
+---
+
+## 9. 運用コマンド（現時点）
+
+- 単発検証: `make verify-once`
+- ループ検証: `make verify-loop ITERATIONS=5 INTERVAL_SEC=5`
+- デバッグ付き: `make verify-once-dump`
+- 品質チェック: `make check`
 
