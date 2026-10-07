@@ -1,170 +1,65 @@
-# US Amex Offer Hunter
+# US Amex Application Support / Offer Lab
 
-Amex Business Platinum などの **高額オファー（例: 300k / 250k ポイント）を自動検知し、「どの条件で当たりやすいか」を実験・可視化するためのツールキット** です。
+US American Express申込を人間が管理しながら支援するための調査プロジェクトです。
+現在は **Phase 0（再構築） / Phase 1（application-probe MVP）**。完成したAutofill拡張ではありません。
 
-- Selenium を用いた Amex オファーページのスクレイピング
-- Discord へのヒット通知
-- 今後の拡張として ProxyManager / StatsEngine / Dash UI を備えた実験プラットフォーム化を目指しています
+- **Application Autofill（今後）**: 保存した申込情報を使い、Chrome拡張の `Fill Now` で現在DOMにある項目だけを意味的に検出して入力する。位置・順番や単一selectorに依存しない。
+- **Offer Lab**: public/referral/targeted、ログインや通常/プライベート環境などの条件と表示オファーを比較する研究基盤。今回実装するのは安全なObservationスキーマと観測ハーネス。
+- **application-probe（今回）**: 人間によるfocus/input/change/blurとHTTP通信の開始を時系列で記録し、安全なDOMメタデータとレポートを作る。
 
-詳細な設計とロードマップは以下を参照してください。
-
-- システム設計: `docs/DESIGN.md`
-- 開発ロードマップ: `docs/ROADMAP.md`
-
----
+Submit Application、Accept Card、CAPTCHA操作、申込確定、検出回避、proxy rotationは自動化しません。実サイトへダミーデータを送りません。
 
 ## セットアップ
 
-前提:
+Node.js 24 / npm。React、Python、Dockerは不要です。
 
-- Python 3.12
-- `uv`（推奨）または通常の `pip`
-
-### 1. 仮想環境の作成と有効化
-
-```bash
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
+```sh
+npm ci
+npm run check
+npm run probe -- --help
 ```
 
-### 2. 依存インストール
+macOSではBraveを既定で起動します。他のOSのBraveは `PROBE_EXECUTABLE` に実行ファイルのパスを指定します。Chromeは `PROBE_BROWSER=chrome`、Playwright Chromiumは `PROBE_BROWSER=chromium`（事前に `npx playwright install chromium`）。ブラウザに変更を加えるstealth設定やUA偽装はありません。
 
-```bash
-make install-dev
+## 実フォーム調査の開始（今回は未実施）
+
+1. [SAFETY](docs/SAFETY.md)と[調査手順](docs/RESEARCH.md)を読む。
+2. 個人情報やtokenを含まない、使用対象の公開HTTPS URLを `PROBE_URL` 環境変数に設定する。許可する初期hostは `www.americanexpress.com` のみ。秘密のURLをシェル履歴へ貼らない。
+3. `npm run probe` を実行する。新規の隔離browser contextが開く。普段のprofileやCookieは読み込まない。
+4. ターミナルで `inspect` を実行し、存在するフォーム項目の安全なメタデータを確認する。ブラウザで人間がfocus等を操作する。**ダミー入力はしない**。
+5. `idle` で無操作の比較区間を開始する。次の操作までは一つの区間となる。
+6. `finish` またはCtrl+Cでブラウザを閉じ、`runs/probe-<UUID>/observation.json` と `steps.md` を保存する。通常EOFでも保存する。強制終了・クラッシュ時の回復は未対応。
+
+probeはURLを開く以外の操作を実行しません。ページ遷移は人間が行い、Submit/Acceptには進まないでください。実データを入力する検証は本人による別途明示判断が必要です。CLIへ自由文やPIIを入力しないでください。
+
+### 保存される情報と制約
+
+URL query/fragment/credentialsは保存しません。未知hostは `host-1`、未知pathは `/route-1` のような実行内aliasへ変換します。alias対応表はメモリのみ。実URLをGit管理する必要はありません。
+
+DOMの値、全文、未知の属性文字列は保存しません。既知の項目名と完全一致する属性のみ残し、他は存在フラグにします。selectorそのものの検証は実機上で行います。`unknown` / `ambiguous` はそのまま記録し、入力対象に昇格させません。
+
+通信は開始時刻で操作と対応付けます。レスポンスが後から返っても別の操作へ付け替えません。ただし関連は **temporal-only** であり、因果関係は証明しません。通信がない区間も「その観測範囲で未観測」の意味です。詳細な計測範囲は[ARCHITECTURE](docs/ARCHITECTURE.md)参照。
+
+## 検証
+
+```sh
+npm run check         # lint / typecheck / unit tests / formatting
+npm run test:browser  # macOS Brave: 完全ローカルの模擬ページ
+# 他の環境:
+npx playwright install chromium
+PROBE_TEST_BROWSER=chromium npm run test:browser
 ```
 
-- `requirements.txt` のインストール
-- パッケージ本体の editable インストール (`pip install -e .`)
+ブラウザテストは `fixture.invalid` をPlaywright内で応答し、それ以外をabortします。CIから実Amexにはアクセスしません。`PRIVATE_SENTINEL` は除外確認用の非PII文字列で、外部へ送信されません。
 
-### 3. Docker / DevContainer（任意）
+## 構成・資料
 
-`Dockerfile` と `docker-compose.yml` は DevContainer 用です。  
-通常のローカル検証（`make verify-*`）は `.venv` 運用で問題ありません。
+- `tools/application-probe/`: 手動調査CLI、操作・通信レコーダー、安全なレポート
+- `packages/core/`: URL parser、allow-list投影、DOM候補識別、厳格なschema
+- `apps/extension/`: 将来のMV3拡張の責務のみ。ロード可能な拡張はまだない
+- [REQUIREMENTS](docs/REQUIREMENTS.md): スコープ、MVP、非機能要件
+- [ARCHITECTURE](docs/ARCHITECTURE.md): 構成とデータフロー
+- [RESEARCH](docs/RESEARCH.md): Confirmed / Probable / Hypothesis / Unknownと実機手順
+- [SAFETY](docs/SAFETY.md): 保存禁止・調査境界
 
----
-
-## 設定（config.yaml + .env）
-
-設定は **`config.yaml`（非秘匿）** を読み込み、秘匿値（トークン/キー）は **`.env` / 環境変数で上書き**します。雛形として `config.yaml` と `.env.sample` を用意しています。
-
-```bash
-cp .env.sample .env
-```
-
-### config.yaml（非秘匿）
-
-`config.yaml` には URL や targets などの「秘匿ではない設定」を置きます。
-
-### .env（秘匿）
-
-`.env` には秘匿値だけを設定します（例）:
-
-```env
-US_AMEX_OFFER_HUNTER_CONFIG__PROXIES__API_KEY=YOUR_PROXY_API_KEY
-US_AMEX_OFFER_HUNTER_CONFIG__DISCORD__BOT_TOKEN=YOUR_DISCORD_BOT_TOKEN
-```
-
-### config.yaml を上書きする例（配列 / プレースホルダ）
-
-`config.yaml` の `urls` や `discord.channel_id` は ENV でも上書きできます。`urls` は JSON 配列文字列として渡してください。
-
-```env
-# URL一覧（JSON配列文字列）
-US_AMEX_OFFER_HUNTER_CONFIG__URLS=["https://example.com"]
-
-# 通知先チャンネル（必要なら）
-US_AMEX_OFFER_HUNTER_CONFIG__DISCORD__CHANNEL_ID=1307613131626905712
-```
-
-> ⚠️ Discord Bot Token や Proxy API Key は **必ず `.env` のみに記述**し、リポジトリには含めないでください。
-
----
-
-## 実行方法
-
-### 1. 単発のオファーチェック（MVP）
-
-今後 `run_once` 向けの CLI ラッパを整備予定ですが、現時点では以下のようなイメージです:
-
-```bash
-python -m us_amex_offer_hunter.cli.main
-```
-
-`config.yaml`（必要に応じて `.env` 上書き）に基づき、Amex ページを 1 巡し、ヒットがあれば Discord に通知します。
-
-### 2. Discord テスト通知
-
-Bot とチャンネルの設定が正しければ、次のコマンドでテスト通知を 1 通送れます。
-
-```bash
-python -m us_amex_offer_hunter.cli.main --notify-test
-```
-
-Discord の対象チャンネルに「Amex Offer Hunter Discord test notification」が届けば、通知経路は正常です。
-
-### 3. 検証専用モード（非通知）
-
-BAN リスクを抑えた段階検証向けに、通知なしで URL 訪問と金額抽出だけを確認できます。
-
-```bash
-# 1回だけ検証
-make verify-once
-
-# 低頻度ループ検証（既定: 5回、45秒間隔）
-make verify-loop
-
-# 当たりが出たら即停止
-make verify-loop STOP_ON_HIT=1
-
-# 条件別サマリ表示（最新N件）
-make verify-summary LATEST=100
-
-# 条件A/B比較（2プロファイル）
-make verify-ab PROFILES="headed-default,headless-custom-ua" ITERATIONS=30 INTERVAL_SEC=45 COOLDOWN_SEC=300
-```
-
-CLI 直実行の場合:
-
-```bash
-python -m us_amex_offer_hunter.cli.main --verify-once
-python -m us_amex_offer_hunter.cli.main --verify-loop --iterations 5 --interval-sec 45
-python -m us_amex_offer_hunter.cli.main --verify-loop --iterations 50 --interval-sec 45 --stop-on-hit --profile headed-default
-python -m us_amex_offer_hunter.cli.main --verify-summary --verify-log-path runs/verify_amounts.jsonl --latest 100
-```
-
-検証結果は `runs/verify_amounts.jsonl` に JSONL 形式で追記されます。
-
-`verify-loop` はヒット有無を終了コードに反映します（hit=0 / no-hit=1）。
-
----
-
-## 品質チェック（format / lint / test 一括）
-
-`Makefile` によって、フォーマット・Lint・型チェック・テストを一括で実行できます。
-
-```bash
-make check
-```
-
-内訳:
-
-- `ruff format` によるコード整形
-- `ruff` による Lint
-- `mypy --strict` による型チェック
-- `pytest` によるテスト実行
-
-CI でもこのコマンドをベースにチェックを行う想定です。
-
----
-
-## 開発の次のステップ
-
-高レベルな開発計画は `docs/ROADMAP.md` に詳述していますが、直近の主なトピックは次の通りです。
-
-- SeleniumCore の強化（タイムアウト / リトライ / UA 切り替え）
-- ProxyManager の実装と IP ローテーション実験
-- StatsEngine / ExperimentRunner による「条件ごとの勝率」計測と検定
-- Dash UI による実験結果の可視化
-
-詳細は設計書とロードマップを参照しつつ、段階的に実装を進めていきます。
-
+旧Selenium、Discord、proxy/stealth設定、rawページdump、Python CI、Dockerを撤去しました。MIT LICENSEは保持しています。既存の無視対象 `.env` / `runs` / browser関連データは読み込まず、移行・削除していません。
