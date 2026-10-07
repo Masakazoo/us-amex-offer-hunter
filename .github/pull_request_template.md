@@ -1,42 +1,9 @@
-# Pull Request
+## Problem and resulting behavior
 
-## 変更内容
-変更の概要を簡潔に記載してください。
+## Removed / retained functionality and reasons
 
-### 追加した機能
-- 
-- 
+## Validation
 
-### 変更・修正した機能
-- 
-- 
+## Research evidence
 
-### 削除した機能
-- 
-- 
-
-## 変更理由
-この変更が必要な理由や背景を説明してください。
-
-## 影響範囲
-この変更による影響範囲を記載してください。
-- [ ] 既存の機能への影響
-- [ ] パフォーマンスへの影響
-- [ ] セキュリティへの影響
-
-## 動作確認
-- [ ] ユニットテストの追加・更新
-- [ ] 動作確認の実施
-- [ ] ドキュメントの更新
-
-## スクリーンショット
-必要に応じてスクリーンショットを添付してください。
-
-## 補足情報
-レビュアーに伝えたい追加情報があれば記載してください。
-
-## チェックリスト
-- [ ] コーディング規約に準拠している
-- [ ] 適切なコメントを追加している
-- [ ] 必要なテストを追加している
-- [ ] ドキュメントを更新している
+Separate Confirmed, Hypothesis and Unknown. Never attach private observations, raw URLs, bodies, headers, profiles or form values.
