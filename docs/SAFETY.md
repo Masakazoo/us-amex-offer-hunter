@@ -25,7 +25,7 @@ SSN、ITIN、Federal Tax ID、生年月日、氏名、住所、電話、email、
 4. schemaは全階層strict。未知キーを拒否。自由文のstep名、eligibility結果、環境名なども拒否。
 5. レポート生成でも同じschemaを検証する。例外にはPIIが含まれ得るのでCLIは固定文のみ出力する。
 
-application code parserは既知query名と書式だけを解析する独立utility。現行URL意味は未確認のためCLIによる自動採用はしていない。offer ID / campaign ID / treatment ID / request tracking IDは認証・個人追跡との関係が未確認で、保存しない。特にapplicant request tracking IDは名前だけで「非機微」と判断しない。
+application code parserは明示query、またはqueryがない場合のpathname末尾を既知書式で解析する独立utility。書式は観測例であり公式仕様とは断定しない。現行URL意味は未確認のためCLIによる自動採用はしていない。offer ID / campaign ID / treatment ID / request tracking IDは認証・個人追跡との関係が未確認で、保存しない。特にapplicant request tracking IDは名前だけで「非機微」と判断しない。
 
 body調査が将来必要なら、まず値を持ち出さずメモリ上で構造を確認する。endpointとフィールドの意味・保存可否を明示レビューしてから専用adapterを追加する。汎用body exporterは実装しない。
 

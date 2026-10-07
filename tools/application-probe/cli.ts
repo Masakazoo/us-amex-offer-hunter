@@ -50,7 +50,7 @@ async function main() {
   try {
     const context = await browser.newContext({
       viewport: { width: 1440, height: 1000 },
-      serviceWorkers: 'block',
+      serviceWorkers: 'allow',
       acceptDownloads: false,
     });
     const recorder = new Recorder();
@@ -98,7 +98,7 @@ async function main() {
         ? { browserVersion: browser.version() }
         : {}),
       viewport: { width: 1440, height: 1000 },
-      serviceWorkers: 'blocked',
+      serviceWorkers: 'allowed',
     };
     const report = reportSchema.parse({
       observation: recorder.observation(environment),

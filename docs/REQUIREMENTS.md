@@ -15,7 +15,7 @@ B: Welcome Offerの提示条件を、PIIを持たないObservationとして比�
 | F2  | 操作とNetworkの時系列対応、無通信区間の明示                                            | 人間のfocus/input/change/blurとopen/inspect/idle/navigationを記録      |
 | F3  | 通信のtimestamp、URL、host/path、method、status、resource type、step、timing、sequence | URLは安全なalias、initiatorは未取得を明示                              |
 | F4  | 現在DOMの項目調査、複数の意味的識別候補                                                | 項目候補語彙、未知・曖昧を保持。実Amex selectorなし                    |
-| F5  | application code parser / Observation runtime validation                               | parserは明示query key限定。取得元の意味は実機確認待ち                  |
+| F5  | application code parser / Observation runtime validation                               | 単一query優先、未指定時はpathname末尾。意味・公式書式は未確認          |
 | F6  | 安全なレポート                                                                         | strict schemaを通したJSONと操作別Markdown                              |
 | F7  | 外部送信が疑われる入力項目の記録                                                       | input/change/blur区間に通信がある項目を保守的にrequires-real-user-data |
 | F8  | 保存情報からのAutofill / ローカルprofile管理                                           | 将来。今回未実装                                                       |

@@ -43,6 +43,39 @@ const observation = () => ({
   network: [request()],
 });
 describe('application code', () => {
+  const path =
+    '/en-us/credit-cards/apply/business/business-platinum-charge-card/68443-9-0';
+  it('parses the user-observed Business Platinum path without retaining marketing query values', () => {
+    expect(
+      parseApplicationCode(
+        `https://www.americanexpress.com${path}?intlink=US-Acq-GCP-Open-CardDetail-PlatinumCard-Apply_Platinum_Hero`,
+      ),
+    ).toBe('68443-9-0');
+    expect(parseApplicationCode(`https://www.americanexpress.com${path}`)).toBe(
+      '68443-9-0',
+    );
+  });
+  it('prefers a single explicit query over the final path segment', () => {
+    expect(
+      parseApplicationCode(
+        `https://www.americanexpress.com${path}?applicationCode=12345-1-1`,
+      ),
+    ).toBe('12345-1-1');
+  });
+  it.each([
+    `https://evil.example${path}`,
+    `http://www.americanexpress.com${path}`,
+    `https://www.americanexpress.com${path}?applicationCode=68443-9-0&applicationCode=12345-1-1`,
+    `https://www.americanexpress.com${path}?applicationCode=invalid`,
+    `https://www.americanexpress.com${path}?applicationCode=`,
+    `https://www.americanexpress.com${path}/next`,
+    'https://www.americanexpress.com/en-us/credit-cards/apply/business/business-platinum-charge-card/68443-9',
+  ])(
+    'does not accept ambiguous, invalid or nonterminal path codes %s',
+    (url) => {
+      expect(parseApplicationCode(url)).toBeUndefined();
+    },
+  );
   it('accepts a single explicit code on the exact Amex HTTPS host', () =>
     expect(
       parseApplicationCode(
@@ -259,6 +292,30 @@ describe('network attribution', () => {
         observation: value,
         fields: [],
         raw: 'PRIVATE_SENTINEL',
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe('service worker observation', () => {
+  it.each(['allowed', 'blocked'])(
+    'records %s without losing the fresh-context distinction',
+    (serviceWorkers) => {
+      const value = observation();
+      const parsed = observationSchema.parse({
+        ...value,
+        environment: { ...value.environment, serviceWorkers },
+      });
+      expect(parsed.environment.serviceWorkers).toBe(serviceWorkers);
+      expect(parsed.environment.session).toBe('fresh-context');
+    },
+  );
+  it('rejects an unknown service worker mode', () => {
+    const value = observation();
+    expect(
+      observationSchema.safeParse({
+        ...value,
+        environment: { ...value.environment, serviceWorkers: 'unknown' },
       }).success,
     ).toBe(false);
   });

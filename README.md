@@ -25,7 +25,7 @@ macOSではBraveを既定で起動します。他のOSのBraveは `PROBE_EXECUTA
 
 1. [SAFETY](docs/SAFETY.md)と[調査手順](docs/RESEARCH.md)を読む。
 2. 個人情報やtokenを含まない、使用対象の公開HTTPS URLを `PROBE_URL` 環境変数に設定する。許可する初期hostは `www.americanexpress.com` のみ。秘密のURLをシェル履歴へ貼らない。
-3. `npm run probe` を実行する。新規の隔離browser contextが開く。普段のprofileやCookieは読み込まない。
+3. `npm run probe` を実行する。新規の隔離browser contextが開く。普段のprofileやCookieは読み込まない。実probeはService Workerをallowし、Observationには `serviceWorkers: allowed` と記録する。offline browser smokeはblockを維持する。
 4. ターミナルで `inspect` を実行し、存在するフォーム項目の安全なメタデータを確認する。ブラウザで人間がfocus等を操作する。**ダミー入力はしない**。
 5. `idle` で無操作の比較区間を開始する。次の操作までは一つの区間となる。
 6. `finish` またはCtrl+Cでブラウザを閉じ、`runs/probe-<UUID>/observation.json` と `steps.md` を保存する。通常EOFでも保存する。強制終了・クラッシュ時の回復は未対応。
@@ -38,7 +38,9 @@ URL query/fragment/credentialsは保存しません。未知hostは `host-1`、�
 
 DOMの値、全文、未知の属性文字列は保存しません。既知の項目名と完全一致する属性のみ残し、他は存在フラグにします。selectorそのものの検証は実機上で行います。`unknown` / `ambiguous` はそのまま記録し、入力対象に昇格させません。
 
-通信は開始時刻で操作と対応付けます。レスポンスが後から返っても別の操作へ付け替えません。ただし関連は **temporal-only** であり、因果関係は証明しません。通信がない区間も「その観測範囲で未観測」の意味です。詳細な計測範囲は[ARCHITECTURE](docs/ARCHITECTURE.md)参照。
+通信は開始時刻で操作と対応付けます。レスポンスが後から返っても別の操作へ付け替えません。ただし関連は **temporal-only** であり、因果関係は証明しません。通信がない区間も「その観測範囲で未観測」の意味です。Service Workerをallowしても、WebSocket frame・browser内部通信・一部SW挙動を含むNetworkの完全取得は保証しません。詳細な計測範囲は[ARCHITECTURE](docs/ARCHITECTURE.md)参照。
+
+application code parserは明示的な `applicationCode` queryを優先し、queryがない場合はpathname末尾（例 `.../business-platinum-charge-card/68443-9-0`）を解析します。書式は観測例に基づく制約で、Amex公式仕様とは断定しません。重複・不正queryはpathへfallbackせず拒否します。
 
 ## 検証
 

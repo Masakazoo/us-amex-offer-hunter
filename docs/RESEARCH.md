@@ -12,9 +12,11 @@
 
 ### ローカル検証で確認したこと
 
-32件のunit testsでURL parser、allow-list投影、nested schema、機微フィールド拒否、開始時刻による対応付けを確認。Braveのローカル模擬ページではfocus/input/blurとPOST、status/timing、requires-real-user-data判定、sentinel除外を検証した。これは実Amexの挙動の証拠ではない。
+unit testsでURL parser、allow-list投影、nested schema、機微フィールド拒否、開始時刻による対応付けを確認。Braveのローカル模擬ページではfocus/input/blurとPOST、status/timing、requires-real-user-data判定、sentinel除外を検証した。これは実Amexの挙動の証拠ではない。
 
 ## ユーザー提供の既存調査（今回の独立検証とは分離）
+
+ユーザーが現在確認したBusiness Platinum申込URLでは、`/en-us/credit-cards/apply/business/business-platinum-charge-card/68443-9-0` の末尾にcodeがある。parserはこのpath例をunit testで検証済み。実サイトへの再アクセス、書式の公式仕様確認、後続通信への伝播は未実施。query形式は互換候補として保持する。
 
 Amex Targeted Offers APIには以下が定義されているとの調査情報を受領した。
 
@@ -43,7 +45,7 @@ Amex Targeted Offers APIには以下が定義されているとの調査情報�
 
 ## Unknown
 
-現行直販フォームのDOM、application code（例 `68443-9-0`）の実際のquery key/意味、offer/campaign/acquisition/treatment ID、各fieldのvalidationとNetwork時点、PUJ/eligibility/approval、private browsingの検出・利用、partner仕様との共通性。
+現行直販フォームのDOM、application code（例 `68443-9-0`）の意味・後続通信への伝播・query形式の実在、offer/campaign/acquisition/treatment ID、各fieldのvalidationとNetwork時点、PUJ/eligibility/approval、private browsingの検出・利用、partner仕様との共通性。
 
 ### 項目別調査表
 
@@ -92,7 +94,7 @@ DOMに存在しない場合は「当該条件では未表示」と記録し、�
 ## 次の実機手順
 
 1. 公開申込URLと対象商品、source条件を選び、公開URLで秘密がないことを確認する。referral/targetedの個人tokenは保存しない。
-2. READMEに従って新規Brave contextで開始。これは普段のログイン済み環境と別条件であり、通常/プライベート比較を実施したとは扱わない。
+2. READMEに従って新規Brave contextで開始。実probeはService Worker allow、offline smokeはblock。allowでも一部SW通信、WebSocket、browser内部通信の完全取得を保証しない。これは普段のログイン済み環境と別条件であり、通常/プライベート比較を実施したとは扱わない。
 3. 初期表示を `inspect`。値を入力せず、name/id/autocomplete/aria-label/label/placeholderを複数観点で確認。CAPTCHAなら中止。
 4. `idle` で背景通信を観察。その後、一項目ずつfocusし、無入力のblurを観測する。動的に出現した項目は再inspect。
 5. 送信が疑われる操作はrequires-real-user-dataとして扱う。ダミー値では進めない。client validationの入力検証は本人の実データ判断またはローカル再現で行う。

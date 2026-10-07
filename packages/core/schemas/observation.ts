@@ -117,7 +117,7 @@ export const observationSchema = z
             height: z.number().int().positive(),
           })
           .strict(),
-        serviceWorkers: z.literal('blocked'),
+        serviceWorkers: z.enum(['allowed', 'blocked']),
       })
       .strict(),
     result: z
