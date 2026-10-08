@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { BrowserContext, Frame, Request } from 'playwright';
 import { installObserver } from './browser-script.js';
+import { parseApplicationCode } from '../../packages/core/amex/url.js';
 import {
   sanitizeField,
   type SafeField,
@@ -24,6 +25,34 @@ const browserEvent = z
     epochMs: z.number().nonnegative(),
   })
   .strict();
+const inspectionSchema = z
+  .object({
+    pages: z.number().int().nonnegative(),
+    frames: z.array(
+      z
+        .object({
+          page: z.number().int().nonnegative(),
+          frame: z.number().int().nonnegative(),
+          mainFrame: z.boolean(),
+          applicationCodeRecognized: z.boolean(),
+          state: z.enum([
+            'ready',
+            'observer-missing',
+            'observer-failed',
+            'evaluation-failed',
+            'projection-failed',
+          ]),
+          failure: z
+            .enum(['type', 'reference', 'security', 'eval', 'timeout', 'other'])
+            .optional(),
+          nativeControls: z.number().int().nonnegative().optional(),
+          inspectedFields: z.number().int().nonnegative().optional(),
+        })
+        .strict(),
+    ),
+  })
+  .strict();
+type Inspection = z.infer<typeof inspectionSchema>;
 
 export class Recorder {
   readonly steps: Step[] = [];
@@ -36,6 +65,10 @@ export class Recorder {
   private fieldIds = new Map<string, string>();
   private created = new Date().toISOString();
   private id = randomUUID();
+  private inspection: Inspection = { pages: 0, frames: [] };
+  inspectionSummary(): Inspection {
+    return inspectionSchema.parse(this.inspection);
+  }
   private frameId(frame: Frame) {
     if (!this.frames.has(frame)) this.frames.set(frame, this.frames.size);
     return this.frames.get(frame)!;
@@ -124,18 +157,66 @@ export class Recorder {
   }
   async inspect(context: BrowserContext) {
     this.mark('inspect');
-    for (const page of context.pages())
+    const pages = context.pages();
+    this.inspection = { pages: pages.length, frames: [] };
+    for (const [pageIndex, page] of pages.entries())
       for (const frame of page.frames()) {
+        const summary: Inspection['frames'][number] = {
+          page: pageIndex,
+          frame: this.frameId(frame),
+          mainFrame: frame === page.mainFrame(),
+          // Only a boolean leaves memory: never export the URL or query value.
+          applicationCodeRecognized:
+            parseApplicationCode(frame.url()) !== undefined,
+          state: 'evaluation-failed',
+        };
+        this.inspection.frames.push(summary);
         try {
-          const raw = await frame.evaluate(
-            () =>
-              (
-                window as unknown as {
-                  __probeInspect?: () => Record<string, unknown>[];
-                }
-              ).__probeInspect?.() ?? [],
-          );
-          for (const item of raw) {
+          const snapshot = await frame.evaluate(() => {
+            const observer = (
+              window as unknown as {
+                __probeInspect?: () => Record<string, unknown>[];
+              }
+            ).__probeInspect;
+            const snapshot = {
+              observerAvailable: typeof observer === 'function',
+              nativeControls: document.querySelectorAll('input,select,textarea')
+                .length,
+              fields: [] as Record<string, unknown>[],
+              failure: undefined as
+                | 'type'
+                | 'reference'
+                | 'security'
+                | 'eval'
+                | 'other'
+                | undefined,
+            };
+            try {
+              if (typeof observer === 'function') snapshot.fields = observer();
+            } catch (error) {
+              const name = error instanceof Error ? error.name : '';
+              snapshot.failure =
+                name === 'TypeError'
+                  ? 'type'
+                  : name === 'ReferenceError'
+                    ? 'reference'
+                    : name === 'SecurityError'
+                      ? 'security'
+                      : name === 'EvalError'
+                        ? 'eval'
+                        : 'other';
+            }
+            return snapshot;
+          });
+          summary.state = snapshot.failure
+            ? 'observer-failed'
+            : snapshot.observerAvailable
+              ? 'ready'
+              : 'observer-missing';
+          if (snapshot.failure) summary.failure = snapshot.failure;
+          summary.nativeControls = snapshot.nativeControls;
+          summary.inspectedFields = snapshot.fields.length;
+          for (const item of snapshot.fields) {
             if (
               typeof item.localId !== 'number' ||
               !Number.isSafeInteger(item.localId) ||
@@ -153,8 +234,21 @@ export class Recorder {
             if (previous < 0) this.fields.push(safe);
             else this.fields[previous] = safe;
           }
-        } catch {
-          /* Navigated/detached frames are retried by the next explicit inspect. No raw errors. */
+        } catch (error) {
+          if (summary.state === 'ready') summary.state = 'projection-failed';
+          // Match only fixed error categories; never print message/stack or arbitrary names.
+          const message = error instanceof Error ? error.message : '';
+          summary.failure = /TypeError/.test(message)
+            ? 'type'
+            : /ReferenceError/.test(message)
+              ? 'reference'
+              : /SecurityError/.test(message)
+                ? 'security'
+                : /EvalError/.test(message)
+                  ? 'eval'
+                  : error instanceof Error && error.name === 'TimeoutError'
+                    ? 'timeout'
+                    : 'other';
         }
       }
     return this.safeFields();
