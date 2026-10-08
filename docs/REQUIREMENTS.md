@@ -2,8 +2,8 @@
 
 ## 目的
 
-A: US Amexの申込フォームに、本人が保存した情報を明示的なFill Nowで入力する将来のChrome MV3拡張。
-B: Welcome Offerの提示条件を、PIIを持たないObservationとして比較するOffer Lab。
+A: 保存した7項目を明示的なFill Nowで入力するChrome MV3拡張MVP。ローカル模擬フォームで検証済みで、実Amexへの入力は未対応・未検証。
+B: Welcome Offerの提示条件を、PIIを持たないObservationとして比較するOffer Lab。観測基盤は実装済み、高額オファー判定機能は未実装。
 
 現在のMVPはPhase 2B。ローカル模擬フォーム専用のMV3拡張を含む。実Amexへの入力とオファー探索の自動巡回は含めない。
 
@@ -25,7 +25,7 @@ source条件、結果は既知のenum/数値型で将来の注釈を受け付け
 
 ## Non-functional requirements
 
-- Node 24、TypeScript strict、最小依存（Playwright/Zod、開発用Vitest/ESLint/Prettier/tsx）。UIフレームワーク不要。
+- Node 24、TypeScript strict、最小依存（Playwright/Zod、開発用Vitest/ESLint/Prettier/tsx/esbuild、Chrome API型定義）。UIフレームワーク不要。
 - request開始時刻で対応付け、終了時にtimingを補完。redirectは別sequence。
 - 未知フィールドを許可しないruntime schemaを、保存境界にも適用。
 - ローカル操作、ネットワーク不要のunit tests、外部通信を拒否するbrowser smoke。

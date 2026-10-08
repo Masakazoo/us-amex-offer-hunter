@@ -48,4 +48,5 @@ SSN、税ID、DOB、住所、電話、収入、自由な追加項目はprofile�
 
 実Amex対応は別途、本人の正しい情報・実際の申込意思を確認して進める。現在のmanifest/URL guardに実Amexの許可はない。
 住所combobox、select、checkbox、税ID/SSN/DOB/収入は今回対象外。
-Offer Labの用途分類・条件比較には別の観測契約が必要で、通信の時刻一致だけで高額offerの判定を推測しない。
+Offer Labの高額オファー判定機能は未実装。用途分類・条件比較には別の観測契約が必要で、通信の時刻一致だけで判定を推測しない。
+Playwrightのmain frame DOM自動取得問題は未解決。Chrome DevTools MCPでのDOM取得検証は未実施で、過去のComputer Use経由のDevTools確認とは区別する。実AmexでのAutofill検証を含め、PR #6マージ後の別スレッドへ引き継ぐ。

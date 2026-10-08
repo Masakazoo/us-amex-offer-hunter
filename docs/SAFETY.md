@@ -39,4 +39,4 @@ body調査が将来必要なら、まず値を持ち出さずメモリ上で構�
 
 ## テスト
 
-unit testsは実データを使わない。browser smokeはPlaywright routing内の合成ページのみ。外部requestはabortし、実AmexページへのCIアクセスを禁止する。CI成果物にブラウザのraw artifactをアップロードしない。
+unit testsは実データを使わない。probeのbrowser smokeはPlaywright routing内の合成ページのみ。拡張テストはloopback模擬フォームと当該拡張のリソースだけを許可する。外部requestはabortし、実AmexページへのCIアクセスを禁止する。CI成果物にブラウザのraw artifactをアップロードしない。

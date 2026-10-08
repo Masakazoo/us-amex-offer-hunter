@@ -1,10 +1,10 @@
 # US Amex Application Support / Offer Lab
 
 US American Express申込を人間が管理しながら支援するための調査プロジェクトです。
-現在は **Phase 2B（ローカルAutofill MVP）**。7項目の端末内保存とFill Nowを実装しました。入力先はローカル模擬フォームだけです。実Amexの自動DOM取得失敗は未解決で、実サイトへの入力適合性は未確認です。
+現在は **Phase 2B（ローカルAutofill MVP）**。Chrome Manifest V3拡張で、7項目のプロフィール保存・再利用・削除と「フォームを検出」→「Fill Now」を実装し、ローカル模擬フォームで動作確認済みです。実Amexサイトへの入力は未対応・未検証で、Playwrightのmain frame DOM自動取得問題も未解決です。
 
 - **Application Autofill（ローカルMVP）**: 保存した申込情報を使い、Chrome拡張の `Fill Now` で現在DOMにある項目だけを意味的に検出して入力する。位置・順番や単一selectorに依存しない。
-- **Offer Lab**: public/referral/targeted、ログインや通常/プライベート環境などの条件と表示オファーを比較する研究基盤。今回実装するのは安全なObservationスキーマと観測ハーネス。
+- **Offer Lab**: public/referral/targeted、ログインや通常/プライベート環境などの条件と表示オファーを比較する研究基盤。安全なObservationスキーマと観測ハーネスを実装済み。高額オファー判定機能は未実装。
 - **application-probe（今回）**: 人間によるfocus/input/change/blurとHTTP通信の開始を時系列で記録し、安全なDOMメタデータとレポートを作る。
 
 Submit Application、Accept Card、CAPTCHA操作、申込確定、検出回避、proxy rotationは自動化しません。実サイトへダミーデータを送りません。
@@ -42,7 +42,7 @@ probe自体はブラウザ操作を代行しません。人間、または明示
 
 URL query/fragment/credentialsは保存しません。未知hostは `host-1`、未知pathは `/route-1` のような実行内aliasへ変換します。alias対応表はメモリのみ。実URLをGit管理する必要はありません。
 
-DOMの値、全文、未知の属性文字列は保存しません。既知の項目名と完全一致する属性のみ残し、他は存在フラグにします。selectorそのものの検証は実機上で行います。`unknown` / `ambiguous` はそのまま記録し、入力対象に昇格させません。
+probeはDOMの値、全文、未知の属性文字列を保存しません。拡張のプロフィール保存は別経路で、前述の拡張手順に従います。既知の項目名と完全一致する属性のみ残し、他は存在フラグにします。selectorそのものの検証は実機上で行います。`unknown` / `ambiguous` はそのまま記録し、入力対象に昇格させません。
 
 `diagnose` は最小式→関数→document状態→control数→observer存在→observer返却件数を別々に評価し、固定状態・boolean・件数のみを表示します。frameごとの評価が3秒を超えたら残りを止めます（開始済みevaluateのキャンセルはできません）。診断結果はreportへ保存しません。実Amexでの根本原因は未確定です。
 
@@ -60,18 +60,23 @@ npm run test:browser  # macOS Brave: 完全ローカルの模擬ページ
 # 他の環境:
 npx playwright install chromium
 PROBE_TEST_BROWSER=chromium npm run test:browser
+PROBE_TEST_BROWSER=chromium npm run test:extension
 ```
 
-ブラウザテストは `fixture.invalid` をPlaywright内で応答し、それ以外をabortします。CIから実Amexにはアクセスしません。`PRIVATE_SENTINEL` は除外確認用の非PII文字列で、外部へ送信されません。
+probeのブラウザテストは `fixture.invalid` をPlaywright内で応答し、それ以外をabortします。拡張テストはloopback模擬フォームと当該拡張のリソースだけを許可し、保存・再利用・削除・検出・Fill Nowを実MV3で検証します。CIから実Amexにはアクセスしません。`PRIVATE_SENTINEL` は除外確認用の非PII文字列で、外部へ送信されません。
 
 ## 構成・資料
 
 - `tools/application-probe/`: 手動調査CLI、操作・通信レコーダー、安全なレポート
 - `packages/core/`: URL parser、allow-list投影、DOM候補識別、厳格なschema
-- `apps/extension/`: 将来のMV3拡張の責務のみ。ロード可能な拡張はまだない
+- `apps/extension/`: ロード可能なMV3拡張MVP。7項目の端末内profileとローカル限定Autofill
 - [REQUIREMENTS](docs/REQUIREMENTS.md): スコープ、MVP、非機能要件
 - [ARCHITECTURE](docs/ARCHITECTURE.md): 構成とデータフロー
 - [RESEARCH](docs/RESEARCH.md): Confirmed / Probable / Hypothesis / Unknownと実機手順
 - [SAFETY](docs/SAFETY.md): 保存禁止・調査境界
 
 旧Selenium、Discord、proxy/stealth設定、rawページdump、Python CI、Dockerを撤去しました。MIT LICENSEは保持しています。既存の無視対象 `.env` / `runs` / browser関連データは読み込まず、移行・削除していません。
+
+## 次スレッドへの引継ぎ
+
+Playwrightのmain frame DOM自動取得問題は未解決で、Issue #4は未完了です。Chrome DevTools MCPによるDOM取得検証は未実施です（過去のComputer Use経由のDevTools確認とは別）。実AmexでのAutofill検証と、Offer Labの高額オファー判定機能は今後の作業です。PR #6の最終レビュー・マージではこれらに着手しません。

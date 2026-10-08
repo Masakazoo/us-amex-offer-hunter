@@ -10,14 +10,15 @@ flowchart LR
   Core --> Schema[strict runtime schema]
   Schema --> Reports[local ignored reports]
   Reports --> Research[人間による安全な知見の整理]
-  Research --> Future[将来のMV3 Autofill / Offer Lab]
+  Research --> Extension[ローカルMV3 Autofill MVP]
+  Research --> Future[将来の実Amex対応 / Offer Lab判定機能]
 ```
 
 単一npmプロジェクト。monorepo管理ツールやビルドframeworkは導入しない。
 
 ## application-probe
 
-- CLI: 初期URLの安全なhostチェック、headed browser起動、inspect/idle/finish、出力権限と終了処理。
+- CLI: 初期URLの安全なhostチェック、headed browser起動、inspect/diagnose/idle/finish、出力権限と終了処理。
 - `browser-script`: documentごとのtrusted focus/input/change/blurの観測。フォームの値を取得しない。操作するAPIは提供しない。
 - `Recorder`: contextレベルのrequest/response/finished/failedイベント、frame/document内の一時IDを実行内field aliasへ変換する。
 - `report`: 保存直前のstrict schema検証、stepごとのMarkdown。自由なエラー文字列を保存しない。
@@ -58,4 +59,4 @@ probeのdiagnoseは最小式からobserver件数までの独立評価。固定en
 
 ## 将来拡張の順序
 
-実機DOM/Network観測 → 固定route・属性の安全なレビュー → selectorとvalidation契約 → Fill Now MVP → 条件注釈・Offer Lab比較UI。body解析が必要になっても、まず構造のみをメモリで検査し、安全性を明示判断したendpoint/field単位のadapterを追加する。未知bodyを再帰保存する機能は作らない。
+ローカルFill Now MVPは実装済み。実Amex適合性の検証、未解決のmain frame DOM取得問題、条件注釈・Offer Lab比較UIは今後の作業。body解析が必要になっても、まず構造のみをメモリで検査し、安全性を明示判断したendpoint/field単位のadapterを追加する。未知bodyを再帰保存する機能は作らない。
