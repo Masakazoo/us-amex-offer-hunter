@@ -17,3 +17,6 @@ jobs:
       - run: npm run test:browser
         env:
           PROBE_TEST_BROWSER: chromium
+      - run: npm run test:extension
+        env:
+          PROBE_TEST_BROWSER: chromium

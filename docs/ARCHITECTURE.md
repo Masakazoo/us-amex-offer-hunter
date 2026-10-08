@@ -46,11 +46,15 @@ Playwright公式: [Request lifecycle/timing](https://playwright.dev/docs/api/cla
 - `redaction`: 任意objectを保存する汎用redactではなく、既知のプロパティだけから新規objectを構築。unknown host/pathのaliasは実行間比較には使えない。将来、実機確認済みの固定routeだけをcode reviewで許可する。
 - `schemas`: nested strict schema。PIIや自由文結果、raw URL、未定義フィールドを拒否。schemaエラーもraw出力しない。
 
-## Chrome Extension（将来）
+## Chrome Extension（Phase 2B・ローカル限定）
 
-MV3、Vanilla TypeScript。`popup` がFill Nowの明示実行、`options` が本人用profileのローカル管理、`autofill` が現在DOMだけを検出・入力、`offer-lab` がPIIを含まない観測を担当する。現時点でmanifestや入力コードはない。
+MV3、Vanilla TypeScript、esbuildでdistへビルド。popupで7項目を編集・storage.localへ保存し、明示的な検出とFill Nowを実行する。
+main frame / ISOLATED worldで自己完結した入力関数を実行。検出時のdocument IDとtab IDを保持し、入力時の再検証も行う。
+manifestはloopbackだけにhost権限を付け、入力関数もport/path/query/hashを確認する。background workerはstorageアクセスをTRUSTED_CONTEXTSへ制限する。
+profileのstrict schemaと研究Observationは独立し、値を診断結果へ返さない。永続保存・編集・全削除はユーザーの明示依頼に基づく。
+詳細・ガード・限界は[extension README](../apps/extension/README.md)を正本とする。
 
-profileはObservationと別経路にし、同期・送信・ログ出力を禁止する。SSN等の保持方法は実装前にユーザーと決める。入力候補が一意でない、既存値がある、対象が非表示などの場合の挙動も次Phaseで確定する。submit/accept/navigationの実行権限をAutofillに与えない。
+probeのdiagnoseは最小式からobserver件数までの独立評価。固定enum/boolean/件数のみのstrict schemaで出力し、URL・例外本文・フォーム値は含めない。診断はCLI表示だけでreportへ保存しない。
 
 ## 将来拡張の順序
 

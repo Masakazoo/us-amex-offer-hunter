@@ -14,7 +14,10 @@
     "test:browser": "node --import tsx tests/browser-smoke.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "npm run lint && npm run typecheck && npm test && npm run format:check"
+    "check": "npm run lint && npm run typecheck && npm test && npm run format:check",
+    "build:extension": "node --import tsx tools/build-extension.ts",
+    "fixture:autofill": "node --import tsx tools/autofill-fixture/server.ts",
+    "test:extension": "npm run build:extension && node --import tsx tests/extension-smoke.ts"
   },
   "dependencies": {
     "playwright": "1.63.0",
@@ -22,7 +25,9 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@types/chrome": "0.3.4",
     "@types/node": "24.19.1",
+    "esbuild": "0.28.2",
     "eslint": "10.12.0",
     "prettier": "3.9.9",
     "tsx": "4.23.15",

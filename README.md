@@ -1,9 +1,9 @@
 # US Amex Application Support / Offer Lab
 
 US American Express申込を人間が管理しながら支援するための調査プロジェクトです。
-現在は **Phase 2A（実Amexの受動調査・一部未確認）**。申込ページのDOM評価失敗が再現し、固定selector候補は手動レビュー済みですが、自動DOM取得には未解決の制約があります。完成したAutofill拡張ではありません。
+現在は **Phase 2B（ローカルAutofill MVP）**。7項目の端末内保存とFill Nowを実装しました。入力先はローカル模擬フォームだけです。実Amexの自動DOM取得失敗は未解決で、実サイトへの入力適合性は未確認です。
 
-- **Application Autofill（今後）**: 保存した申込情報を使い、Chrome拡張の `Fill Now` で現在DOMにある項目だけを意味的に検出して入力する。位置・順番や単一selectorに依存しない。
+- **Application Autofill（ローカルMVP）**: 保存した申込情報を使い、Chrome拡張の `Fill Now` で現在DOMにある項目だけを意味的に検出して入力する。位置・順番や単一selectorに依存しない。
 - **Offer Lab**: public/referral/targeted、ログインや通常/プライベート環境などの条件と表示オファーを比較する研究基盤。今回実装するのは安全なObservationスキーマと観測ハーネス。
 - **application-probe（今回）**: 人間によるfocus/input/change/blurとHTTP通信の開始を時系列で記録し、安全なDOMメタデータとレポートを作る。
 
@@ -21,6 +21,12 @@ npm run probe -- --help
 
 macOSではBraveを既定で起動します。他のOSのBraveは `PROBE_EXECUTABLE` に実行ファイルのパスを指定します。Chromeは `PROBE_BROWSER=chrome`、Playwright Chromiumは `PROBE_BROWSER=chromium`（事前に `npx playwright install chromium`）。ブラウザに変更を加えるstealth設定やUA偽装はありません。
 
+## Autofillを試す
+
+`npm run build:extension` → `npm run fixture:autofill`。
+Brave / Chromeで `dist/extension` を読み込み、模擬フォーム上で拡張の検出・Fill Nowを使います。
+7項目のprofileは端末内に保存でき、次回も再利用できます。詳細は[拡張の手順・保存仕様](apps/extension/README.md)。
+
 ## 実フォーム調査の開始
 
 1. [SAFETY](docs/SAFETY.md)と[調査手順](docs/RESEARCH.md)を読む。
@@ -37,6 +43,8 @@ probe自体はブラウザ操作を代行しません。人間、または明示
 URL query/fragment/credentialsは保存しません。未知hostは `host-1`、未知pathは `/route-1` のような実行内aliasへ変換します。alias対応表はメモリのみ。実URLをGit管理する必要はありません。
 
 DOMの値、全文、未知の属性文字列は保存しません。既知の項目名と完全一致する属性のみ残し、他は存在フラグにします。selectorそのものの検証は実機上で行います。`unknown` / `ambiguous` はそのまま記録し、入力対象に昇格させません。
+
+`diagnose` は最小式→関数→document状態→control数→observer存在→observer返却件数を別々に評価し、固定状態・boolean・件数のみを表示します。frameごとの評価が3秒を超えたら残りを止めます（開始済みevaluateのキャンセルはできません）。診断結果はreportへ保存しません。実Amexでの根本原因は未確定です。
 
 `inspect` は累積の `fields` と、今回の取得診断 `inspection` を表示します。診断はpage/frame数、observerの状態（ready / observer-missing / observer-failed / evaluation-failed / projection-failed）、固定の失敗分類、native control数、今回取得したfield数、現URLを既存application code parserで解析できたかの真偽値だけです。raw URL・code値・例外本文は出力せず、診断は既存reportへ自動保存しません。native control数にはhidden/button等も含み、field数とは定義が異なります。過去のfieldsが残っていても、現在のページを取得できた証拠にはなりません。
 

@@ -171,3 +171,22 @@ Amex公式[Targeted Offers Node SDK](https://github.com/americanexpress/targeted
 以前の調査では[developer portal](https://developer.americanexpress.com/products/targeted-offers/overview)は403で取得できなかった。
 partnerのsession/context/offer/tracking仕様が現在の直販フォームと共通である証拠はない。APIを直接呼び出していない。
 旧Selenium/stealth/proxy/raw dump等はPhase 0で撤去済み。ローカルunit/browserテストの成功は実Amex動作の証拠とは分離する。
+
+## Phase 2Bへの引継ぎ（2026-10-08）
+
+PR #5を調査成果としてマージ。Issue #4は未完了のまま。
+確認済み7項目を使うローカル限定MV3と、端末内profile保存・再利用・全削除を実装した。
+実Amexへの値入力、Submit/Accept、Offer判定実験は実施していない。
+
+DOM切り分け用にdiagnoseを追加。最小式・関数・document・control数・observer存在・observer件数を個別に調べる。
+ローカルfixtureではobserver欠落とobserver例外を識別できる。
+追加run H（2026-10-08 12:07:25.551Z、新規Chrome 154.0.8037.98、SW allow）では、直リンクがInvalid Url Pageになったため、公開一覧のBusiness Platinum Applyから実フォームへ進んだ。
+Computer UseでEmail/Legal Business Name/First Name/Last Nameが表示されていることを確認。新コマンドを2回実行し、2ページのmain frameは最小の文字列式`true`を含む6段階すべてfailed、detach=false。子frameは全段階okでcontrol/observer件数0だった。
+通常inspectもmain frameはevaluation-failed/other、子frameはready。申込側のURL parserは成功した。
+DOM本体やselector以前の評価経路まで絞れたが、site処理・Playwright・実行contextのどれに起因するかはUnknown。回避設定や別worldへの差し替えは行っていない。
+Hは688 requests、open 1/navigation 22/inspect 3のみでinput/change/focus/blurなし。finish後のstrict schema、Markdown再生成一致、JSON0600を確認。診断表示と生runをGitへ入れていない。
+ローカル拡張テストではtsxが注入する補助関数__nameを未定義のブラウザ評価へ持ち込むReferenceErrorを再現した。
+自己完結した関数内のobject methodを使ってこのテスト経路は修正したが、実Amexの既存失敗と同一原因である証拠はない。
+
+Offer Labの次の作業は、既知条件の手動注釈と比較項目の設計から始める。endpoint役割・高額offer判定規則は未解明。
+実サイトの本人入力検証が必要な部分はPhase 2Cとして確認後に進める。

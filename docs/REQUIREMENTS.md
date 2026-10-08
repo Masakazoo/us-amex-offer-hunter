@@ -5,7 +5,7 @@
 A: US Amexの申込フォームに、本人が保存した情報を明示的なFill Nowで入力する将来のChrome MV3拡張。
 B: Welcome Offerの提示条件を、PIIを持たないObservationとして比較するOffer Lab。
 
-今回のMVPはPhase 0/1。最終拡張やオファー探索の自動巡回は含めない。
+現在のMVPはPhase 2B。ローカル模擬フォーム専用のMV3拡張を含む。実Amexへの入力とオファー探索の自動巡回は含めない。
 
 ## Functional requirements
 
@@ -14,11 +14,11 @@ B: Welcome Offerの提示条件を、PIIを持たないObservationとして比�
 | F1  | TypeScript/Node構成へ再編、旧実装撤去                                                  | 実装                                                                   |
 | F2  | 操作とNetworkの時系列対応、無通信区間の明示                                            | 人間のfocus/input/change/blurとopen/inspect/idle/navigationを記録      |
 | F3  | 通信のtimestamp、URL、host/path、method、status、resource type、step、timing、sequence | URLは安全なalias、initiatorは未取得を明示                              |
-| F4  | 現在DOMの項目調査、複数の意味的識別候補                                                | 項目候補語彙、未知・曖昧を保持。実Amex selectorなし                    |
+| F4  | 現在DOMの項目調査、複数の意味的識別候補                                                | 実測23組のid/name候補。拡張は確認済み7項目だけをローカルで使用         |
 | F5  | application code parser / Observation runtime validation                               | 単一query優先、未指定時はpathname末尾。意味・公式書式は未確認          |
 | F6  | 安全なレポート                                                                         | strict schemaを通したJSONと操作別Markdown                              |
 | F7  | 外部送信が疑われる入力項目の記録                                                       | input/change/blur区間に通信がある項目を保守的にrequires-real-user-data |
-| F8  | 保存情報からのAutofill / ローカルprofile管理                                           | 将来。今回未実装                                                       |
+| F8  | 保存情報からのAutofill / ローカルprofile管理                                           | 7項目をstorage.local保存、検出・Fill Now・全削除。ローカル限定         |
 | F9  | offer/campaign/treatment等の抽出                                                       | 未確認なので未実装。body収集もなし                                     |
 
 source条件、結果は既知のenum/数値型で将来の注釈を受け付ける。CLIはsourceをunknownにし、eligibility/PUJ/approvalを推測しない。acceptedは常にfalse。計測していない環境属性をfalse等で埋めない。
@@ -38,8 +38,9 @@ source条件、結果は既知のenum/数値型で将来の注釈を受け付け
 
 ## Out of scope
 
-申込送信、カード承諾、CAPTCHA/anti-bot回避、fingerprint偽装、proxy rotation、他人のsession取得、partner APIの実行、hidden APIの直接呼出し、raw HAR/スクリーンショット/trace、PII fixture、実Amex CI、完成版Chrome拡張。
+申込送信、カード承諾、CAPTCHA/anti-bot回避、fingerprint偽装、proxy rotation、他人のsession取得、partner APIの実行、hidden APIの直接呼出し、raw HAR/スクリーンショット/trace、PII fixture、実Amex CI、実サイト検証済みChrome拡張。
 
-## MVPの完了条件
+## 現MVPの完了条件
 
-READMEと必須4文書、core、手動probe、unit testsとローカルbrowser検証、lint/typecheck/test CIを揃える。未調査のAmex固有挙動をUnknownとして残し、実機で観測を始められること。実サイト調査はユーザー判断で今回後送り。
+ローカルの実MV3で保存・再利用・全削除と明示Fill Nowが動き、曖昧・非表示・無効・既存値・対象外・ページ変更を保守的に拒否すること。
+実サイト検証・Offer Lab拡張・Phase 2A DOM取得失敗の解決は別の未完了項目。詳細は[拡張手順](../apps/extension/README.md)。

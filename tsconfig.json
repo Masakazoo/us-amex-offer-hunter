@@ -9,12 +9,13 @@
     "exactOptionalPropertyTypes": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "types": ["node"]
+    "types": ["node", "chrome"]
   },
   "include": [
     "packages/**/*.ts",
     "tools/**/*.ts",
     "tests/**/*.ts",
-    "vitest.config.ts"
+    "vitest.config.ts",
+    "apps/**/*.ts"
   ]
 }
