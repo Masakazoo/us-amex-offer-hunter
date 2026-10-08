@@ -10,7 +10,7 @@ import type { Observation } from '../../packages/core/schemas/observation.js';
 async function main() {
   if (process.argv.includes('--help')) {
     console.log(
-      'PROBE_URL=<public HTTPS URL> npm run probe\nOptional: PROBE_BROWSER=brave|chrome|chromium; PROBE_EXECUTABLE=<path>\nCommands: inspect, idle, finish. All browser interactions are manual. Never submit or accept.',
+      'PROBE_URL=<public HTTPS URL> npm run probe\nOptional: PROBE_BROWSER=brave|chrome|chromium; PROBE_EXECUTABLE=<path>\nCommands: inspect, idle, finish. Browser interactions are external to the probe. Never submit or accept.',
     );
     return;
   }
@@ -58,7 +58,7 @@ async function main() {
     const page = await context.newPage();
     recorder.mark('open');
     console.log(
-      'Manual observation only. Do not type dummy data. Never Submit Application / Accept Card. Stop at CAPTCHA.',
+      'Passive form observation. Do not type dummy data. Never Submit Application / Accept Card. Stop at CAPTCHA.',
     );
     try {
       await page.goto(url.href, {
@@ -81,9 +81,16 @@ async function main() {
         break;
       }
       if (command === 'finish') break;
-      if (command === 'inspect')
-        console.log(JSON.stringify(await recorder.inspect(context), null, 2));
-      else if (command === 'idle') recorder.mark('idle');
+      if (command === 'inspect') {
+        const fields = await recorder.inspect(context);
+        console.log(
+          JSON.stringify(
+            { inspection: recorder.inspectionSummary(), fields },
+            null,
+            2,
+          ),
+        );
+      } else if (command === 'idle') recorder.mark('idle');
       else
         console.log(
           'Use inspect, idle, or finish. Do not enter personal data here.',

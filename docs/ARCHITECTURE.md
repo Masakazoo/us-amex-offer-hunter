@@ -33,7 +33,7 @@ statusは受信時、duration/responseMsは取得できた場合のみ設定す�
 - 実probeはsite本来の挙動をなるべく保つためservice workersをallowした新規context（Observation: allowed）。offline browser smokeはblock（Observation: blocked）。通常の既存sessionや通常ウィンドウと同条件ではない。incognitoの判定も行わない。
 - HTTP request lifecycleが対象。Service Worker allowは完全取得を意味しない。一部SW挙動の可視性は未検証。WebSocket frame、WebRTC、browser内部通信は記録しない。閉じる瞬間の非同期イベントは取りこぼす可能性がある。
 - native input/select/textareaを対象とする。custom combobox、closed shadow DOM、クロスプロセスframe等の完全性は未検証。DOM inspectionはdocument querySelectorベースでshadow treeを走査しない。
-- DOM検査中に破棄されたframeはスキップする。次のinspectで再試行する。
+- DOM検査中に破棄されたframeはスキップする。次のinspectで再試行する。CLIのinspection診断で、今回の取得状態・固定の失敗分類・件数を累積fieldsと分けて表示する。raw例外は表示しない。
 - raw DOM属性の候補は一時的にメモリでのみ識別に使う。exact allow-list以外はログへ残らないため、selectorの採否は実機で別途確認が必要。
 - ブラウザのフォーム送信を技術的に完全遮断するものではない。人間も調査中はSubmit/Acceptしない。
 

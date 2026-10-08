@@ -73,9 +73,56 @@ try {
   );
   assert.ok(!JSON.stringify(report).includes('PRIVATE_SENTINEL'));
   assert.ok(!renderReport(report).includes('PRIVATE_SENTINEL'));
+  const initialInspection = recorder.inspectionSummary();
+  assert.equal(initialInspection.pages, 1);
+  assert.equal(initialInspection.frames[0]?.state, 'ready');
+  assert.equal(initialInspection.frames[0]?.nativeControls, 1);
+  assert.equal(initialInspection.frames[0]?.inspectedFields, 1);
+  assert.equal(initialInspection.frames[0]?.applicationCodeRecognized, false);
+  // A missing observer must not look like a successfully inspected empty form.
+  await page.evaluate(() => {
+    delete (window as unknown as { __probeInspect?: unknown }).__probeInspect;
+  });
+  await recorder.inspect(context);
+  assert.equal(
+    recorder.inspectionSummary().frames[0]?.state,
+    'observer-missing',
+  );
+  assert.equal(recorder.inspectionSummary().frames[0]?.nativeControls, 1);
+  assert.equal(recorder.inspectionSummary().frames[0]?.inspectedFields, 0);
+  // Cumulative fields remain distinguishable from the current inspection.
+  assert.equal(recorder.safeFields().length, 1);
+  const popup = await context.newPage();
+  await popup.goto('https://fixture.invalid/');
+  await recorder.inspect(context);
+  assert.equal(recorder.inspectionSummary().pages, 2);
+  assert.equal(recorder.inspectionSummary().frames[1]?.state, 'ready');
+  assert.ok(
+    !JSON.stringify(recorder.inspectionSummary()).includes('PRIVATE_SENTINEL'),
+  );
+  assert.ok(
+    !JSON.stringify(recorder.inspectionSummary()).includes('fixture.invalid'),
+  );
+  await popup.evaluate(() => {
+    (window as unknown as { __probeInspect: () => never }).__probeInspect =
+      () => {
+        throw new TypeError('PRIVATE_SENTINEL');
+      };
+  });
+  await recorder.inspect(context);
+  assert.equal(
+    recorder.inspectionSummary().frames[1]?.state,
+    'observer-failed',
+  );
+  assert.equal(recorder.inspectionSummary().frames[1]?.failure, 'type');
+  assert.equal(recorder.inspectionSummary().frames[1]?.nativeControls, 1);
+  assert.ok(
+    !JSON.stringify(recorder.inspectionSummary()).includes('PRIVATE_SENTINEL'),
+  );
   await context.close();
+
   console.log(
-    'PASS offline browser: input/focus/blur -> request attribution; safe DOM and report; no external access.',
+    'PASS offline browser: request attribution; safe DOM/report/diagnostics; no external access.',
   );
 } finally {
   await browser.close();

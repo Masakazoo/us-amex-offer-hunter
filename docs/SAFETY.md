@@ -11,7 +11,7 @@ SSN、ITIN、Federal Tax ID、生年月日、氏名、住所、電話、email、
 - Submit Application / Accept Cardを実行しない。調査中は人間も押さない。
 - CAPTCHAを操作しない。遭遇したら終了する。
 - anti-fraud/bot回避、webdriver concealment、fingerprint spoofing、proxy rotation、credential/session取得、hidden API呼出しを実装しない。
-- 人間の操作の観測のみ。probeにfill/click/press/submitコマンドを持たせない。初期公開URL以外の遷移も人間が行う。
+- probeに汎用fill/click/press/submitコマンドを持たせない。2026-10-08の明示的な追加依頼により、Computer Useで公開商品ページのApplyと空欄focus・blur・scrollを行える。これは申込値入力やSubmit/Acceptの許可ではない。CAPTCHA・ログイン要求では終了する。
 - ダミー値を本番へ送信しない。focus/DOM/selector調査を先に行う。focus/blurにも通信の可能性がある。
 - 無通信が一度観測されたことは安全の証明ではない。遅延送信・navigation時送信もあり得るため、このMVPで実サイトへのダミー入力を解禁しない。
 - input/change/blur区間に通信があるfieldは、因果関係未確定でも `requires-real-user-data`。それ以上のダミー操作は禁止。
