@@ -4,6 +4,7 @@ export default tseslint.config(
   {
     ignores: [
       'node_modules/**',
+      'dist/**',
       'runs/**',
       'chrome-devtools-mcp/**',
       '.venv/**',

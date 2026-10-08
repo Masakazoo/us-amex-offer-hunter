@@ -10,14 +10,15 @@ flowchart LR
   Core --> Schema[strict runtime schema]
   Schema --> Reports[local ignored reports]
   Reports --> Research[人間による安全な知見の整理]
-  Research --> Future[将来のMV3 Autofill / Offer Lab]
+  Research --> Extension[ローカルMV3 Autofill MVP]
+  Research --> Future[将来の実Amex対応 / Offer Lab判定機能]
 ```
 
 単一npmプロジェクト。monorepo管理ツールやビルドframeworkは導入しない。
 
 ## application-probe
 
-- CLI: 初期URLの安全なhostチェック、headed browser起動、inspect/idle/finish、出力権限と終了処理。
+- CLI: 初期URLの安全なhostチェック、headed browser起動、inspect/diagnose/idle/finish、出力権限と終了処理。
 - `browser-script`: documentごとのtrusted focus/input/change/blurの観測。フォームの値を取得しない。操作するAPIは提供しない。
 - `Recorder`: contextレベルのrequest/response/finished/failedイベント、frame/document内の一時IDを実行内field aliasへ変換する。
 - `report`: 保存直前のstrict schema検証、stepごとのMarkdown。自由なエラー文字列を保存しない。
@@ -46,12 +47,16 @@ Playwright公式: [Request lifecycle/timing](https://playwright.dev/docs/api/cla
 - `redaction`: 任意objectを保存する汎用redactではなく、既知のプロパティだけから新規objectを構築。unknown host/pathのaliasは実行間比較には使えない。将来、実機確認済みの固定routeだけをcode reviewで許可する。
 - `schemas`: nested strict schema。PIIや自由文結果、raw URL、未定義フィールドを拒否。schemaエラーもraw出力しない。
 
-## Chrome Extension（将来）
+## Chrome Extension（Phase 2B・ローカル限定）
 
-MV3、Vanilla TypeScript。`popup` がFill Nowの明示実行、`options` が本人用profileのローカル管理、`autofill` が現在DOMだけを検出・入力、`offer-lab` がPIIを含まない観測を担当する。現時点でmanifestや入力コードはない。
+MV3、Vanilla TypeScript、esbuildでdistへビルド。popupで7項目を編集・storage.localへ保存し、明示的な検出とFill Nowを実行する。
+main frame / ISOLATED worldで自己完結した入力関数を実行。検出時のdocument IDとtab IDを保持し、入力時の再検証も行う。
+manifestはloopbackだけにhost権限を付け、入力関数もport/path/query/hashを確認する。background workerはstorageアクセスをTRUSTED_CONTEXTSへ制限する。
+profileのstrict schemaと研究Observationは独立し、値を診断結果へ返さない。永続保存・編集・全削除はユーザーの明示依頼に基づく。
+詳細・ガード・限界は[extension README](../apps/extension/README.md)を正本とする。
 
-profileはObservationと別経路にし、同期・送信・ログ出力を禁止する。SSN等の保持方法は実装前にユーザーと決める。入力候補が一意でない、既存値がある、対象が非表示などの場合の挙動も次Phaseで確定する。submit/accept/navigationの実行権限をAutofillに与えない。
+probeのdiagnoseは最小式からobserver件数までの独立評価。固定enum/boolean/件数のみのstrict schemaで出力し、URL・例外本文・フォーム値は含めない。診断はCLI表示だけでreportへ保存しない。
 
 ## 将来拡張の順序
 
-実機DOM/Network観測 → 固定route・属性の安全なレビュー → selectorとvalidation契約 → Fill Now MVP → 条件注釈・Offer Lab比較UI。body解析が必要になっても、まず構造のみをメモリで検査し、安全性を明示判断したendpoint/field単位のadapterを追加する。未知bodyを再帰保存する機能は作らない。
+ローカルFill Now MVPは実装済み。実Amex適合性の検証、未解決のmain frame DOM取得問題、条件注釈・Offer Lab比較UIは今後の作業。body解析が必要になっても、まず構造のみをメモリで検査し、安全性を明示判断したendpoint/field単位のadapterを追加する。未知bodyを再帰保存する機能は作らない。

@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 import { Recorder } from '../tools/application-probe/recorder.js';
+import { diagnose } from '../tools/application-probe/diagnostics.js';
 import {
   reportSchema,
   renderReport,
@@ -79,6 +80,11 @@ try {
   assert.equal(initialInspection.frames[0]?.nativeControls, 1);
   assert.equal(initialInspection.frames[0]?.inspectedFields, 1);
   assert.equal(initialInspection.frames[0]?.applicationCodeRecognized, false);
+  const diagnosis = await diagnose(context);
+  assert.equal(diagnosis.frames[0]?.stages.length, 6);
+  assert.ok(diagnosis.frames[0]?.stages.every((stage) => stage.state === 'ok'));
+  assert.equal(diagnosis.frames[0]?.stages[5]?.value, 1);
+  assert.ok(!JSON.stringify(diagnosis).includes('PRIVATE_SENTINEL'));
   // A missing observer must not look like a successfully inspected empty form.
   await page.evaluate(() => {
     delete (window as unknown as { __probeInspect?: unknown }).__probeInspect;
@@ -90,6 +96,7 @@ try {
   );
   assert.equal(recorder.inspectionSummary().frames[0]?.nativeControls, 1);
   assert.equal(recorder.inspectionSummary().frames[0]?.inspectedFields, 0);
+  assert.equal((await diagnose(context)).frames[0]?.stages[4]?.value, false);
   // Cumulative fields remain distinguishable from the current inspection.
   assert.equal(recorder.safeFields().length, 1);
   const popup = await context.newPage();
@@ -116,6 +123,9 @@ try {
   );
   assert.equal(recorder.inspectionSummary().frames[1]?.failure, 'type');
   assert.equal(recorder.inspectionSummary().frames[1]?.nativeControls, 1);
+  const failedDiagnosis = await diagnose(context);
+  assert.equal(failedDiagnosis.frames[1]?.stages[5]?.state, 'failed');
+  assert.ok(!JSON.stringify(failedDiagnosis).includes('PRIVATE_SENTINEL'));
   assert.ok(
     !JSON.stringify(recorder.inspectionSummary()).includes('PRIVATE_SENTINEL'),
   );

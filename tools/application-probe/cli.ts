@@ -4,13 +4,14 @@ import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
 import { chromium } from 'playwright';
 import { Recorder } from './recorder.js';
+import { diagnose } from './diagnostics.js';
 import { reportSchema, renderReport } from './report.js';
 import type { Observation } from '../../packages/core/schemas/observation.js';
 
 async function main() {
   if (process.argv.includes('--help')) {
     console.log(
-      'PROBE_URL=<public HTTPS URL> npm run probe\nOptional: PROBE_BROWSER=brave|chrome|chromium; PROBE_EXECUTABLE=<path>\nCommands: inspect, idle, finish. Browser interactions are external to the probe. Never submit or accept.',
+      'PROBE_URL=<public HTTPS URL> npm run probe\nOptional: PROBE_BROWSER=brave|chrome|chromium; PROBE_EXECUTABLE=<path>\nCommands: inspect, diagnose, idle, finish. Browser interactions are external to the probe. Never submit or accept.',
     );
     return;
   }
@@ -71,7 +72,7 @@ async function main() {
       );
     }
     console.log(
-      'Commands: inspect (safe DOM metadata), idle (start baseline interval), finish (save and close).',
+      'Commands: inspect (safe DOM metadata), diagnose (read-only evaluation ladder), idle (start baseline interval), finish (save and close).',
     );
     while (!stopping) {
       let command: string;
@@ -90,10 +91,13 @@ async function main() {
             2,
           ),
         );
+      } else if (command === 'diagnose') {
+        recorder.mark('inspect');
+        console.log(JSON.stringify(await diagnose(context), null, 2));
       } else if (command === 'idle') recorder.mark('idle');
       else
         console.log(
-          'Use inspect, idle, or finish. Do not enter personal data here.',
+          'Use inspect, diagnose, idle, or finish. Do not enter personal data here.',
         );
     }
     // Close before export so failed/pending request states reflect browser shutdown.

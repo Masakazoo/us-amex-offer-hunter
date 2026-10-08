@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "minimum_chrome_version": "121",
+  "name": "Amex Autofill — Local MVP",
+  "version": "0.3.0",
+  "description": "ローカル模擬フォーム用のAutofill検証版。実サイトには入力しません。",
+  "permissions": ["storage", "scripting"],
+  "background": { "service_worker": "worker.js", "type": "module" },
+  "host_permissions": ["http://127.0.0.1/*"],
+  "action": { "default_popup": "popup.html" },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; connect-src 'none'"
+  }
+}
