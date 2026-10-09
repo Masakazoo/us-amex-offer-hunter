@@ -11,6 +11,18 @@
     <p>
       ローカル模擬フォーム専用。テストには意味を持たない文字列を使用してください。
     </p>
+    <section aria-label="暗号化ファイルからの読み込み">
+      <label
+        >解除済み保管庫の profile.yaml を選択
+        <input type="file" id="vault-file" accept=".yaml,.yml" />
+      </label>
+      <button type="button" id="lock" disabled>メモリの本人情報を削除</button>
+      <p class="note">
+        読み込みはメモリ内のみ。ブラウザ終了・拡張再読み込みで消えます。
+        読み込み後は保管庫を取り出してください。DBAなしは空文字のままにします。
+        本人情報の正しさ・申込資格の検証ではありません。この版では読み込んだ情報をフォームへ入力しません。
+      </p>
+    </section>
     <form id="profile" autocomplete="off"></form>
     <div class="buttons">
       <button type="button" id="save">端末に保存</button

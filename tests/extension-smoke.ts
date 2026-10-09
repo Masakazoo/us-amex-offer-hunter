@@ -182,8 +182,138 @@ try {
     'blocked',
   );
   assert.equal(await page.locator('#firstName').inputValue(), '');
+
+  // Imported personal profiles stay in session memory and cannot reach fixtures/local storage.
+  await page.goto('http://127.0.0.1:4173/autofill-fixture');
+  const yaml = fieldSpecs
+    .map(
+      ([key]) =>
+        `${key}: "${key === 'companyDBAName' ? '' : 'VAULT_SENTINEL'}"`,
+    )
+    .join('\n');
+  await reopened.locator('#vault-file').setInputFiles({
+    name: 'profile.yaml',
+    mimeType: 'text/plain',
+    buffer: Buffer.from(yaml),
+  });
+  await reopened
+    .getByText(
+      '7項目の形式を確認し、メモリに読み込みました。模擬フォームへの入力と平文保存は無効です。',
+    )
+    .waitFor();
+  assert.equal(await reopened.locator('#save').isDisabled(), true);
+  await reopened
+    .locator('#save')
+    .evaluate((el) => el.dispatchEvent(new MouseEvent('click')));
+  await reopened
+    .getByText(
+      '操作できませんでした。模擬フォームと入力内容を確認して、再検出してください。',
+    )
+    .waitFor();
+
+  assert.equal(
+    await reopened.locator('[name="firstName"]').getAttribute('type'),
+    'password',
+  );
+  assert.equal(
+    await reopened.locator('[name="firstName"]').inputValue(),
+    'VAULT_SENTINEL',
+  );
+  assert.equal(
+    await reopened.locator('[name="companyDBAName"]').inputValue(),
+    '',
+  );
+  assert.equal(
+    await reopened.evaluate(
+      async () => Object.keys(await chrome.storage.local.get(null)).length,
+    ),
+    0,
+  );
+  await reopened.reload();
+  await reopened
+    .getByText(
+      'メモリの本人情報を再利用します。模擬フォームへの入力と平文保存は無効です。',
+    )
+    .waitFor();
+  await page.bringToFront();
+  await reopened.locator('#inspect').click();
+  await reopened
+    .getByText('検出しました。この版では本人情報を模擬フォームへ入力しません。')
+    .waitFor();
+  assert.equal(await reopened.locator('#fill').isDisabled(), true);
+  // Even a programmatic click cannot bypass the imported-profile guard.
+  await reopened
+    .locator('#fill')
+    .evaluate((el) => el.dispatchEvent(new MouseEvent('click')));
+  await reopened
+    .getByText(
+      '操作できませんでした。模擬フォームと入力内容を確認して、再検出してください。',
+    )
+    .waitFor();
+  assert.equal(await page.locator('#firstName').inputValue(), '');
+  assert.ok(
+    !(await reopened.locator('#message').textContent())?.includes(
+      'VAULT_SENTINEL',
+    ),
+  );
+  const otherPopup = await context.newPage();
+  await otherPopup.goto(`chrome-extension://${id}/popup.html`);
+  await otherPopup
+    .getByText(
+      'メモリの本人情報を再利用します。模擬フォームへの入力と平文保存は無効です。',
+    )
+    .waitFor();
+  await reopened.locator('#lock').click();
+  await reopened
+    .getByText('メモリの本人情報を削除しました。暗号化ファイルは変更しません。')
+    .waitFor();
+  await otherPopup.waitForFunction(
+    () =>
+      (document.querySelector('[name="firstName"]') as HTMLInputElement)
+        .value === '',
+  );
+  assert.equal(
+    await reopened.evaluate(
+      async () => Object.keys(await chrome.storage.session.get(null)).length,
+    ),
+    0,
+  );
+  await reopened.locator('#vault-file').setInputFiles({
+    name: 'profile.yaml',
+    mimeType: 'text/plain',
+    buffer: Buffer.from(yaml),
+  });
+  await reopened
+    .getByText(
+      '7項目の形式を確認し、メモリに読み込みました。模擬フォームへの入力と平文保存は無効です。',
+    )
+    .waitFor();
+  await reopened.locator('#vault-file').setInputFiles({
+    name: 'invalid.yaml',
+    mimeType: 'text/plain',
+    buffer: Buffer.from(yaml + '\nunknown: "DO_NOT_LOG"'),
+  });
+  await reopened
+    .getByText(
+      '読み込めません。7項目・二重引用符・文字数を確認してください。値やファイル名は記録しません。',
+    )
+    .waitFor();
+  assert.equal(await reopened.locator('[name="firstName"]').inputValue(), '');
+  assert.equal(
+    await reopened.evaluate(
+      async () => Object.keys(await chrome.storage.session.get(null)).length,
+    ),
+    0,
+  );
+  assert.equal(
+    await reopened.evaluate(
+      async () => Object.keys(await chrome.storage.local.get(null)).length,
+    ),
+    0,
+  );
+  await otherPopup.close();
   console.log(
-    'PASS extension: real MV3 UI, persistent local profile/delete, isolated fill, conservative guards; external network blocked.',
+    'PASS extension: real MV3 UI, persistent local profile/delete, memory-only vault import/lock, fixture guard, isolated fill, conservative guards; external network blocked.',
   );
 } finally {
   await context.close();

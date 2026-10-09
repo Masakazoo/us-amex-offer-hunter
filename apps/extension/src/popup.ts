@@ -5,6 +5,12 @@ import {
   profileKey,
 } from './profile.js';
 import { runAutofill } from './autofill.js';
+import {
+  maxProfileBytes,
+  parseVaultProfile,
+  sessionProfileKey,
+  sessionProfileSchema,
+} from './vault-profile.js';
 
 const form = document.querySelector<HTMLFormElement>('#profile')!;
 const message = document.querySelector<HTMLElement>('#message')!;
@@ -16,6 +22,26 @@ const buttons = Array.from(
 const inputs = new Map<string, HTMLInputElement>();
 let target: { tabId: number; documentId: string } | undefined;
 let busy = false;
+let vaultMode = false;
+const fileInput = document.querySelector<HTMLInputElement>('#vault-file')!;
+const save = document.querySelector<HTMLButtonElement>('#save')!;
+const lock = document.querySelector<HTMLButtonElement>('#lock')!;
+function refreshControls() {
+  buttons.forEach((button) => (button.disabled = busy));
+  fileInput.disabled = busy;
+  save.disabled = busy || vaultMode;
+  lock.disabled = busy || !vaultMode;
+  fill.disabled = busy || !target || vaultMode;
+  inputs.forEach((input) => {
+    input.readOnly = vaultMode || busy;
+    input.type = vaultMode ? 'password' : 'text';
+  });
+}
+function displayProfile(profile: ReturnType<typeof profileSchema.parse>) {
+  inputs.forEach((input, key) => {
+    input.value = profile[key as keyof typeof profile];
+  });
+}
 
 for (const [key, label, max] of fieldSpecs) {
   const wrapper = document.createElement('label');
@@ -68,7 +94,7 @@ async function activeTab() {
 async function action(work: () => Promise<void>) {
   if (busy) return;
   busy = true;
-  buttons.forEach((b) => (b.disabled = true));
+  refreshControls();
   try {
     await work();
   } catch {
@@ -78,8 +104,7 @@ async function action(work: () => Promise<void>) {
       '操作できませんでした。模擬フォームと入力内容を確認して、再検出してください。';
   } finally {
     busy = false;
-    buttons.forEach((b) => (b.disabled = false));
-    fill.disabled = !target;
+    refreshControls();
   }
 }
 function values() {
@@ -93,6 +118,7 @@ document.querySelector('#save')!.addEventListener(
   'click',
   () =>
     void action(async () => {
+      if (vaultMode) throw new Error('Blocked');
       await chrome.storage.local.set({
         [profileKey]: { version: 1, values: values() },
       });
@@ -104,6 +130,8 @@ document.querySelector('#delete')!.addEventListener(
   () =>
     void action(async () => {
       await chrome.storage.local.remove(profileKey);
+      await chrome.storage.session.remove(sessionProfileKey);
+      vaultMode = false;
       inputs.forEach((input) => (input.value = ''));
       target = undefined;
       results.replaceChildren();
@@ -126,14 +154,16 @@ document.querySelector('#inspect')!.addEventListener(
       showResult(injection?.result);
       if (!injection?.documentId) throw new Error('Missing document');
       target = { tabId, documentId: injection.documentId };
-      message.textContent =
-        '検出しました。Fill Nowで入力可能な空欄だけに現在の入力内容を反映します。';
+      message.textContent = vaultMode
+        ? '検出しました。この版では本人情報を模擬フォームへ入力しません。'
+        : '検出しました。Fill Nowで入力可能な空欄だけに現在の入力内容を反映します。';
     }),
 );
 fill.addEventListener(
   'click',
   () =>
     void action(async () => {
+      if (vaultMode) throw new Error('Blocked');
       const selected = target;
       target = undefined;
       if (!selected || selected.tabId !== (await activeTab()))
@@ -150,10 +180,88 @@ fill.addEventListener(
     }),
 );
 
+fileInput.addEventListener(
+  'change',
+  () =>
+    void action(async () => {
+      const file = fileInput.files?.[0];
+      fileInput.value = '';
+      // Invalidate old session before attempting replacement; failures do not retain it.
+      target = undefined;
+      results.replaceChildren();
+      inputs.forEach((input) => (input.value = ''));
+      vaultMode = true;
+      await chrome.storage.session.remove(sessionProfileKey);
+      const profile =
+        file && file.size <= maxProfileBytes
+          ? parseVaultProfile(await file.text())
+          : undefined;
+      if (!profile) {
+        message.textContent =
+          '読み込めません。7項目・二重引用符・文字数を確認してください。値やファイル名は記録しません。';
+        return;
+      }
+      await chrome.storage.session.setAccessLevel({
+        accessLevel: 'TRUSTED_CONTEXTS',
+      });
+      await chrome.storage.session.set({
+        [sessionProfileKey]: {
+          version: 1,
+          source: 'vault-file',
+          values: profile,
+        },
+      });
+      vaultMode = true;
+      displayProfile(profile);
+      message.textContent =
+        '7項目の形式を確認し、メモリに読み込みました。模擬フォームへの入力と平文保存は無効です。';
+    }),
+);
+lock.addEventListener(
+  'click',
+  () =>
+    void action(async () => {
+      await chrome.storage.session.remove(sessionProfileKey);
+      inputs.forEach((input) => (input.value = ''));
+      target = undefined;
+      results.replaceChildren();
+      vaultMode = false;
+      message.textContent =
+        'メモリの本人情報を削除しました。暗号化ファイルは変更しません。';
+    }),
+);
+// Clear other open extension pages as soon as session data is removed/replaced.
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== 'session' || !Object.hasOwn(changes, sessionProfileKey)) return;
+  target = undefined;
+  results.replaceChildren();
+  inputs.forEach((input) => (input.value = ''));
+  const parsed = sessionProfileSchema.safeParse(
+    changes[sessionProfileKey]?.newValue,
+  );
+  vaultMode = parsed.success;
+  if (parsed.success) displayProfile(parsed.data.values);
+  refreshControls();
+});
+
 void action(async () => {
   await chrome.storage.local.setAccessLevel({
     accessLevel: 'TRUSTED_CONTEXTS',
   });
+  await chrome.storage.session.setAccessLevel({
+    accessLevel: 'TRUSTED_CONTEXTS',
+  });
+  const session = (await chrome.storage.session.get(sessionProfileKey))[
+    sessionProfileKey
+  ];
+  if (session !== undefined) {
+    vaultMode = true;
+    const profile = sessionProfileSchema.parse(session);
+    displayProfile(profile.values);
+    message.textContent =
+      'メモリの本人情報を再利用します。模擬フォームへの入力と平文保存は無効です。';
+    return;
+  }
   const stored = (await chrome.storage.local.get(profileKey))[profileKey];
   if (stored !== undefined) {
     const profile = storedProfileSchema.parse(stored);

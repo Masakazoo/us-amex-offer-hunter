@@ -2,3 +2,7 @@
 void chrome.storage.local
   .setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' })
   .catch(() => {});
+
+void chrome.storage.session
+  .setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' })
+  .catch(() => {});

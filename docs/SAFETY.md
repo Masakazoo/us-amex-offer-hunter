@@ -40,3 +40,7 @@ body調査が将来必要なら、まず値を持ち出さずメモリ上で構�
 ## テスト
 
 unit testsは実データを使わない。probeのbrowser smokeはPlaywright routing内の合成ページのみ。拡張テストはloopback模擬フォームと当該拡張のリソースだけを許可する。外部requestはabortし、実AmexページへのCIアクセスを禁止する。CI成果物にブラウザのraw artifactをアップロードしない。
+
+## 暗号化YAMLの読込境界
+
+本人が選択した7項目の限定YAMLは拡張内で検証し、TRUSTED_CONTEXTSのstorage.sessionだけで保持する。内容・ファイル名・parserエラーをログに出さない。読込モードでlocalへの保存と模擬フォームへの入力を拒否する。元の暗号化ファイルを唯一の正本とし、実サイトへの有効化は別途承認を得る。実データでテストしない。詳細は拡張README参照。
