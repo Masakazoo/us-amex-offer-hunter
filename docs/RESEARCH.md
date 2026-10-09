@@ -289,3 +289,52 @@ MCPとPlaywrightで評価結果が異なる可能性はある。ただし接続t
 **Hypothesis**: チャットのMCP接続再読込により登録済みツールを利用可能にできる可能性がある。現セッションへの動的反映は確認できていない。
 
 **Unknown**: 実AmexのDOM取得、7項目の現行再現性、Playwrightとの差、実サイトでの例外/遷移時を含む安全なMCP応答境界。実Amex Autofillへの移行判断は引き続き不可。
+
+### 同日追記: 再起動後のネイティブMCP実フォーム観測
+
+以下は再起動後の新しい観測であり、上記の「MCP未実施」「7項目のMCP再現性未検証」を更新する。実Amex Autofillは有効化していない。
+
+#### Confirmed
+
+- このチャットに登録済み6ツールが公開された。MCP 1.10.1 / 新規隔離Chromeでabout:blankのmain frame、最小関数、control数0を確認した。ローカル例外テストは固定失敗状態に投影し、例外本文は出力しなかった。
+- MCPの応答はオーケストレーション内のメモリで受け取り、raw応答をそのまま表示・ファイル保存せず、固定状態と許可されたメタデータだけを出力した。DOM結果は固定キー・型・7項目の固定IDを検証した。MCP内部の応答生成自体を変更したわけではなく、ブラウザ側の投影とクライアント側の出力制御を区別する。
+- 公開Business Credit Cards一覧の可視Applyリンクのうち、Business Platinum向け4件が同一の公式申込先を指すことをメモリ上で照合し、その1件を1回clickした。過去の申込codeや直リンクを使っていない。申込先URL・queryは出力・記録しなかった。
+- Applyで別ページが開いた。元の公開ページはcontrols=0、申込ページは公式host・application pathnameの一致boolean、Email / First Name各1件、main=true、controls=34、iframe=5で区別した。ページ一覧にはtitleがURLより前に付くため、最初のURL位置を仮定したparserは対象を抽出できなかった。その結果を「ページなし」と採用せず、ページIDごとの固定DOMメタデータ評価で照合した。
+- 申込ページのmain frameでDOM取得が成功。後述の2回目の訪問では独立した最小関数 `() => true` も成功。documentはcomplete。7項目の関連labelが過去の既知文字列と一致し、各id/nameは1件で同じ要素を指した。
+- 以下の7項目はすべてinput/text、layout上可視、disabled=false（:disabledでfieldsetも考慮）、readonly=false、inert=false、pattern属性なし、HTML required=false、minLength=-1（HTMLの下限指定なし）だった。
+
+| 項目                  | id=name            | maxlength | id/name件数   | label一致 |
+| --------------------- | ------------------ | --------- | ------------- | --------- |
+| Email Address         | email              | 50        | 各1・同一要素 | true      |
+| Legal Business Name   | legalBusinessName  | 90        | 各1・同一要素 | true      |
+| Business Name on Card | businessNameOnCard | 20        | 各1・同一要素 | true      |
+| Company DBA Name      | companyDBAName     | 90        | 各1・同一要素 | true      |
+| First Name            | firstName          | 15        | 各1・同一要素 | true      |
+| Last Name             | lastName           | 20        | 各1・同一要素 | true      |
+| Name on Card          | nameOnCard         | 20        | 各1・同一要素 | true      |
+
+- 最初の7項目取得時は全項目viewport外だった。Email、続いてFirst Nameへ無入力scrollを行い、それぞれviewport内に入ったことをbooleanで確認した。layout上の可視性とviewport内表示は別に記録する。画像による目視確認や遮蔽物の完全検査はしていない。
+- 最初の7項目取得から29秒後、同じ申込ページで再取得した。viewport内外以外の7項目メタデータは全件一致し、controls=34のまま。その後、同じ隔離browser contextで公開商品ページからApplyをもう1回開き、新しい申込tabで最小関数 `() => true` とDOM取得を独立実行した。main=true、controls=34、viewport以外の7項目メタデータ一致を再確認し、そのtabも閉じた。合計Applyは2回。browser context自体を作り直す試験はしていない。
+- 5つのiframe中4つはmain documentからcontentDocumentが取得でき、control数は各0。残る1つはcontentDocumentを取得できなかった。これは子frame独立contextでの評価成功/失敗を意味しない。
+- `__probeInspect` は存在しなかった。この新規MCP環境には既存probeのobserverを注入していないためであり、observer欠落をDOM取得失敗とは分類しない。
+- 可視見出し等の限定的な検査ではCAPTCHA・ログイン要求を検出しなかった。値のread/write、focus/blur、選択変更、Submit Application、Accept Cardは行っていない。通常profile・過去の生run・本人情報は読み込んでいない。Network全件、headers/body、HAR、画像、traceは取得・保存しなかった。調査後は申込tabを閉じ、残る公開tabをabout:blankへ戻した。
+
+#### Probable
+
+新たに採用する主張なし。
+
+#### Hypothesis
+
+PlaywrightとMCPで関数転送・実行context・起動条件等が違うことが結果の差に関係する可能性はある。今回の成功だけではどれも立証できない。
+
+#### Unknown / 比較の限界
+
+- 過去のrun HはPlaywrightでmain frameの文字列式trueを含む6段階がfailed、子frameはok。今回はMCPでmain frameの最小関数とDOM取得が成功した。ブラウザversion、session、時刻、observerの有無等が異なり、同一targetを同時比較した結果ではない。Playwrightの根本原因は未解決で、既存probeを修正していない。
+- このMCP 1.10.1のevaluate_scriptは関数を受け取り、内部でevaluateHandleとevaluateを使用する。裸の文字列式trueだけの独立評価と、任意のframe/world指定は公開schemaにない。main/childの独立評価context比較は未実施で、MV3 ISOLATED worldでの読み取り適合性も未検証。
+- 7項目は過去のFと今回の新規sessionで一致し、今回の29秒後にも安定した。ただし同じcontextの再訪1回でも一致したが、条件分岐・再読込・別申込条件・入力後の非同期更新に対する再現性を保証しない。未知labelや属性値は取得結果へ昇格させていない。
+- CAPTCHA・ログイン要求の限定的DOM検査は、全frame・画像・closed shadow DOMを含む完全な検出保証ではない。今回、安全な操作対象以外には進んでいない。
+- 今回は既存Observation形式のsafe reportを生成せず、Network topologyも再調査していない。Issue #4のDoD全達成とはしない。
+
+#### 次段階の判断
+
+MCPによる受動DOM取得は可能と確認できた。7項目のselector根拠は強まったが、実Amex Fill Nowへ直ちに進む条件は未達。まず拡張の実サイト権限・対象URL制約と読み取り検証の具体案を提示する。本人の管理・申込意思・入力範囲・保存要否を別途確認し、本人が端末上で直接情報を入力する方法を準備する。入力の承認はSubmit/Acceptの承認としない。Issue #4はOPENを維持する。
