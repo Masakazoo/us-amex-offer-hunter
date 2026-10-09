@@ -269,3 +269,23 @@ MCPとPlaywrightで評価結果が異なる可能性はある。ただし接続t
 - 対象カード・表示中の申込画面・入力を許可する7項目内の範囲、DBA等の該当性、既存値は上書きしないこと。
 - 本人が正確な情報を端末上で直接入力する方法。候補はローカル拡張popupで、チャット・Git・ツール引数・診断ログへ値を渡さない。storage.localは暗号化されないため、保存の要否と全削除方法も説明する。既存profileを無断で読み込まない。
 - 入力だけでもページ側の通信が起き得ること。入力許可はSubmit Application / Accept Cardの許可にはならず、今回の境界を引き続き維持する。
+
+### 同日追記: MCP登録とローカル実起動確認
+
+ユーザーの追加依頼により、未登録だったChrome DevTools MCPをローカルCodex設定へ登録した。先の「利用できない」はその時点の状態であり、以下の設定・実起動確認により準備状況が進んだ。
+
+**Confirmed**:
+
+- 登録前のユーザー設定にChrome DevTools MCPのエントリがなかった。登録後は `codex mcp get chrome-devtools` でenabledとstdio構成を確認した。
+- パッケージは `chrome-devtools-mcp@1.10.1` に固定。`--isolated`、autoConnect無効、使用統計/CrUX無効、設定自動探索/更新確認無効を設定。通常profileを指定していない。Node 24.11.1、Chrome 155.0.8059.39。
+- Codexに公開するツールをlist_pages / new_page / select_page / navigate_page / close_page / evaluate_scriptに限定。入力・Network・performance・emulation・memoryカテゴリも無効。evaluate_script自体は書き込み可能なので、これは技術的な読み取り専用保証ではなく、既存の操作境界を引き続き守る。
+- 登録済みコマンドをローカルstdioクライアントから起動し、MCP initialize、tools/list、新規隔離Chromeのabout:blankでmain frame一致・最小関数true・native control数0を確認した。
+- 同じ空ページにメモリ内の無値ローカルcontrolを1個作成し、id/name件数各1、label一致、type=text、disabled=false、readonly=false、maxlength=20をMCPで取得した。フォームの値は入力していない。実Amexへの遷移・入力・Submit・Acceptは行わず、検証プロセスは終了した。
+- 1.10.1の実装を確認すると、ページ一覧・新規ページ・選択・遷移等はURLを含む応答を生成し、例外やdialog本文も応答に含まれ得る。DOM投影だけではこれらを防げない。実サイト前にクライアントへ渡す応答全体の安全な投影を確認する必要がある。
+- 設定後も、この実行中チャットの公開ツール一覧にはChrome DevTools MCPが追加されていない。上記は直接stdioでのMCP検証であり、チャット内のネイティブツール呼び出し成功とは区別する。
+
+**Probable**: 新しい主張なし。
+
+**Hypothesis**: チャットのMCP接続再読込により登録済みツールを利用可能にできる可能性がある。現セッションへの動的反映は確認できていない。
+
+**Unknown**: 実AmexのDOM取得、7項目の現行再現性、Playwrightとの差、実サイトでの例外/遷移時を含む安全なMCP応答境界。実Amex Autofillへの移行判断は引き続き不可。
