@@ -1,6 +1,6 @@
 # Research log
 
-更新日: 2026-10-08（Asia/Tokyo）。Issue #4 / Phase 2Aの実測記録。
+更新日: 2026-10-09（Asia/Tokyo）。Issue #4 / Phase 2Aの実測記録とMCP調査の準備状況。
 **主要DOMはComputer UseとDevToolsで確認できたが、probeの自動DOM取得は未解決。Issueは未完了とする。**
 
 ## 条件・証拠
@@ -190,3 +190,82 @@ Hは688 requests、open 1/navigation 22/inspect 3のみでinput/change/focus/blu
 
 Offer Labの次の作業は、既知条件の手動注釈と比較項目の設計から始める。endpoint役割・高額offer判定規則は未解明。
 実サイトの本人入力検証が必要な部分はPhase 2Cとして確認後に進める。
+
+## Chrome DevTools MCP受動調査の準備（2026-10-09）
+
+### Confirmed
+
+- 開始時の作業ツリーはクリーン。fetch後のmainはPR #6のmerge commit `35e06abde39a8a3ee7a3504e461dee4f047f530f`。専用ブランチ `codex/devtools-passive-readiness` をそこから作成した。Issue #4はOPEN。
+- このチャットに公開されたツール一覧にはChrome DevTools MCPがない。MCPの接続対象・サーバーバージョン・起動設定は確認できていない。「端末に未インストール」とまでは断定しない。
+- MCPでの実フォーム表示、最小式評価、DOM取得は未実施。通常profileへの接続、新規調査ブラウザの起動も行っていない。今回は実フォームへの値入力、focus/blur、Submit Application、Accept Cardを一切行っていない。
+- 既存profile、過去の生run、Cookie、認証情報は読み込んでいない。生ログ、HAR、スクリーンショット、traceを新規保存していない。変更対象は本書のみで、拡張の実Amex権限やURL guardは変更しない。
+- 公開検索ではAmex公式のBusiness Credit Cards公開一覧にBusiness PlatinumとApply Nowの案内がある。これは検索経路の確認だけで、調査ブラウザから現行Applyを通って申込フォームへ到達した証拠ではない。過去の申込code・URLを再利用しない。
+
+### Probable
+
+新たに採用する主張なし。MCPなら成功するという確率的判断もまだできない。
+
+### Hypothesis
+
+MCPとPlaywrightで評価結果が異なる可能性はある。ただし接続target、document、world、関数の転送方法、評価時刻などの差を比較していないため、特定の層が原因とは判断しない。過去のローカルテストの `__name` 問題を実サイトの原因と同一視しない。
+
+### Unknown / 今回の観測限界
+
+| 確認対象                                      | 今回の結果                   |
+| --------------------------------------------- | ---------------------------- |
+| 表示フォームとMCP接続targetの一致             | 未確認・接続なし             |
+| main frameの文字列式true / 関数return true    | 未実施                       |
+| document状態 / control数 / observer存在・件数 | 未実施                       |
+| frame・評価context・待機時間による違い        | 未実施                       |
+| 7項目の現行selector・一意性・属性             | 未実施・下表は過去の証拠のみ |
+| Playwrightとの差                              | 新たな比較結果なし           |
+
+過去のrun HではPlaywrightのmain frame最小式を含む6段階が2回ともfailed、子frameはokだった（上記引継ぎ参照）。Computer Use経由のDevTools成功は別経路の証拠で、MCP成功には数えない。今回は失敗を再現したのではなく、MCPツールが利用できない段階で止まっている。
+
+### 7項目の再確認表
+
+過去のrun Fでは以下のid/nameがそれぞれ1件、type=text、disabled=falseだった。各候補は `#<id>` と `[name="<name>"]`。現在の再現性、readonly、可視性、条件分岐はすべて未確認。過去の値を新しい測定値として転記しない。
+
+| label（末尾*省略）    | 過去のid=name      | 過去のmaxlength | 今回のMCP再現性 |
+| --------------------- | ------------------ | --------------- | --------------- |
+| Email Address         | email              | 50              | 未検証          |
+| Legal Business Name   | legalBusinessName  | 90              | 未検証          |
+| Business Name on Card | businessNameOnCard | 20              | 未検証          |
+| Company DBA Name      | companyDBAName     | 90              | 未検証          |
+| First Name            | firstName          | 15              | 未検証          |
+| Last Name             | lastName           | 20              | 未検証          |
+| Name on Card          | nameOnCard         | 20              | 未検証          |
+
+### 再開に必要な準備
+
+1. Chrome DevTools MCPをこのチャットで利用可能にし、使用バージョンを固定・記録する。公式設定の `--isolated` で新規の一時profileを使い、既存接続用のautoConnect/browserUrl/wsEndpointや通常profileを指定しない。まず空ページとローカルfixtureで接続対象と出力を検証する。Brave優先方針はあるが、MCP公式サポートはChrome / Chrome for Testingなので、この比較用には新規Chromeを候補とする。
+2. 使用統計を `--no-usage-statistics`、CrUXを `--no-performance-crux` で無効化する。設定自動探索の無効化も検討し、既存設定が意図せぬ接続先を指定しないことを確認する。これは準備案で、このチャットではインストール・設定変更をしていない。
+3. ツールの実際のschemaと応答生成をバージョン単位で確認する。評価結果だけでなく、自動付加されるpage一覧・URL・snapshot・例外本文も対象。includeSnapshot=falseだけで安全とみなさない。実URLやページ全文が自動出力され、取得前に制限できなければ実サイトでは使わない。Network/console全件取得、performance、heap、screenshot、traceを使わない。
+4. 戻り値は固定field ID、固定enum、boolean、件数、数値属性に限定し、ブラウザ側でallow-list投影する。未知id/name/labelは文字列を返さずunknown、maxlengthは数値または未確認とする。既存のstrict schema保護はMCP応答へ自動適用されないため、受け取り・保存境界を別途検証する。フォーム値、outerHTML、任意textContent、location.href、例外message/stackを返さない。
+5. 公開商品ページを調査用ブラウザで開き、現行Business PlatinumのApplyから進む。人間が表示内容と選択targetを照合し、固定の商品一致・フォーム表示booleanだけを記録する。CAPTCHA・ログイン要求・予期しないダイアログでは停止し、自動承諾もしない。
+
+公式資料（設定案の出典。実測結果ではない）:
+[README](https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/README.md)、
+[Configuration](https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/docs/configuration.md)、
+[Tool reference](https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/docs/tool-reference.md)。
+利用時に実際のバージョンの仕様を再確認する。
+
+### 準備後の受動比較手順
+
+- ローカルfixtureで成功/例外/遷移時の応答に禁止情報が混入しないことを先に確認する。
+- 実フォーム表示直後と一定待機後に、最小式、最小関数、document状態、control数、observer存在・件数の順で独立評価する。日時・待機秒・固定の成功/失敗分類を残す。observerなしは評価失敗と区別する。
+- main/childを別記し、公開ツールがframe/world指定を提供しなければその比較は未対応とする。別worldへの回避的差し替えや未知APIによる補完はしない。
+- 7項目ごとにid件数、name件数、同じ要素か、label一致、element/type、可視性、disabled（fieldset含む）、readonly、inert、maxlength/minlength、pattern有無を確認する。不一致・重複・未表示はその状態を残す。無入力の再観測でも一致するか確認する。
+- Playwright比較は同一target/documentを安全に共有できる場合だけ同条件と呼ぶ。別の新規sessionなら環境・時刻・遷移差を明記し、成功/失敗の差から原因を断定しない。raw target/frame/context識別子は外へ出さず実行内aliasにする。
+- 代替は既存probeのinspect/diagnose、または調査用ブラウザ内の手動DevToolsで固定メタデータだけを見る方法。どちらもMCP検証の代替達成とはしない。Computer Useは自動AX応答の漏洩境界を先に解決する必要がある。
+
+### 実Amex Autofillへの移行判断
+
+**現時点では進めない。** MCPによる取得可否、7項目の現行再現性、実MV3のISOLATED worldでの読み取り適合性が未確認で、MCPで読めることだけでもFill Nowの正しさは証明できない。Issue #4は閉じない。
+
+受動調査完了後、実サイトへの権限・URL制約の変更案、対象document固定と直前再検証、入力イベントによる外部送信・非同期更新の限界を具体的に提示し、実Amex有効化と入力について別途承認を得る。その時点で以下を確認する。
+
+- 本人が自分の申込として管理していること、事業情報を扱う権限、実際の申込意思。本人確認書類をチャットへ提出してもらう意味ではない。
+- 対象カード・表示中の申込画面・入力を許可する7項目内の範囲、DBA等の該当性、既存値は上書きしないこと。
+- 本人が正確な情報を端末上で直接入力する方法。候補はローカル拡張popupで、チャット・Git・ツール引数・診断ログへ値を渡さない。storage.localは暗号化されないため、保存の要否と全削除方法も説明する。既存profileを無断で読み込まない。
+- 入力だけでもページ側の通信が起き得ること。入力許可はSubmit Application / Accept Cardの許可にはならず、今回の境界を引き続き維持する。
