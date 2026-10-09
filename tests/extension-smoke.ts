@@ -1,6 +1,10 @@
 /** Real MV3 loading, storage and isolated-world fill. External network is aborted. */
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
+import { fullFixtureHtml, fullSentinelProfile } from './full-form-fixture.js';
+import { runFullAutofill } from '../apps/extension/src/full-autofill.js';
+import { fullFieldSpecs } from '../apps/extension/src/full-profile.js';
+import { classifyTarget } from '../apps/extension/src/target.js';
 import { chromium } from 'playwright';
 import { startFixture } from '../tools/autofill-fixture/server.js';
 import { runAutofill } from '../apps/extension/src/autofill.js';
@@ -22,7 +26,7 @@ const context = await chromium.launchPersistentContext('', {
   ],
 });
 try {
-  context.setDefaultTimeout(10000);
+  context.setDefaultTimeout(30000);
   const worker =
     context.serviceWorkers()[0] ??
     (await context.waitForEvent('serviceworker'));
@@ -63,7 +67,9 @@ try {
   assert.equal(await reopened.locator('#results li').count(), 7);
   await reopened.locator('#fill').click();
   await reopened
-    .getByText('処理が終わりました。項目ごとの結果を確認してください。')
+    .getByText(
+      '処理が終わりました。項目ごとの結果と申込画面を確認してください。申込送信はしていません。',
+    )
     .waitFor();
   for (const [key] of fieldSpecs)
     assert.equal(await page.locator(`#${key}`).inputValue(), 'SENTINEL');
@@ -77,6 +83,7 @@ try {
     await page
       .evaluate(runAutofill, {
         action: 'fill',
+        source: 'local-test',
         values: { firstName: 'REPLACE' },
       })
       .then((r) => r.fields.find((f) => f.field === 'firstName')?.status),
@@ -108,7 +115,7 @@ try {
   await reopened.locator('#fill').click();
   await reopened
     .getByText(
-      '操作できませんでした。模擬フォームと入力内容を確認して、再検出してください。',
+      '操作できませんでした。対象の申込ページまたは模擬フォームを開き、再検出してください。',
     )
     .waitFor();
   assert.equal(await page.locator('#firstName').inputValue(), '');
@@ -118,7 +125,11 @@ try {
   const sentinel = { firstName: 'SENTINEL' };
   const status = async () =>
     (
-      await page.evaluate(runAutofill, { action: 'fill', values: sentinel })
+      await page.evaluate(runAutofill, {
+        action: 'fill',
+        source: 'local-test',
+        values: sentinel,
+      })
     ).fields.find((f) => f.field === 'firstName')?.status;
   await page
     .locator('#firstName')
@@ -168,6 +179,7 @@ try {
     (
       await page.evaluate(runAutofill, {
         action: 'fill',
+        source: 'local-test',
         values: { ssn: 'SENTINEL' },
       })
     ).state,
@@ -177,8 +189,13 @@ try {
     history.replaceState(null, '', '/autofill-fixture?unreviewed=1'),
   );
   assert.equal(
-    (await page.evaluate(runAutofill, { action: 'fill', values: sentinel }))
-      .state,
+    (
+      await page.evaluate(runAutofill, {
+        action: 'fill',
+        source: 'local-test',
+        values: sentinel,
+      })
+    ).state,
     'blocked',
   );
   assert.equal(await page.locator('#firstName').inputValue(), '');
@@ -198,7 +215,7 @@ try {
   });
   await reopened
     .getByText(
-      '7項目の形式を確認し、メモリに読み込みました。模擬フォームへの入力と平文保存は無効です。',
+      '申込情報をメモリに読み込みました。Amex申込ページでフォームを検出してください。',
     )
     .waitFor();
   assert.equal(await reopened.locator('#save').isDisabled(), true);
@@ -207,7 +224,7 @@ try {
     .evaluate((el) => el.dispatchEvent(new MouseEvent('click')));
   await reopened
     .getByText(
-      '操作できませんでした。模擬フォームと入力内容を確認して、再検出してください。',
+      '操作できませんでした。対象の申込ページまたは模擬フォームを開き、再検出してください。',
     )
     .waitFor();
 
@@ -232,13 +249,13 @@ try {
   await reopened.reload();
   await reopened
     .getByText(
-      'メモリの本人情報を再利用します。模擬フォームへの入力と平文保存は無効です。',
+      'メモリの本人情報を再利用します。Amex申込ページでフォームを検出してください。',
     )
     .waitFor();
   await page.bringToFront();
   await reopened.locator('#inspect').click();
   await reopened
-    .getByText('検出しました。この版では本人情報を模擬フォームへ入力しません。')
+    .getByText('検出しました。本人情報は模擬フォームへ入力しません。')
     .waitFor();
   assert.equal(await reopened.locator('#fill').isDisabled(), true);
   // Even a programmatic click cannot bypass the imported-profile guard.
@@ -247,7 +264,7 @@ try {
     .evaluate((el) => el.dispatchEvent(new MouseEvent('click')));
   await reopened
     .getByText(
-      '操作できませんでした。模擬フォームと入力内容を確認して、再検出してください。',
+      '操作できませんでした。対象の申込ページまたは模擬フォームを開き、再検出してください。',
     )
     .waitFor();
   assert.equal(await page.locator('#firstName').inputValue(), '');
@@ -256,11 +273,189 @@ try {
       'VAULT_SENTINEL',
     ),
   );
+  // Official-origin contract test: ALL requests are intercepted, no Amex network access.
+  const amexUrl =
+    'https://www.americanexpress.com/en-us/credit-cards/apply/business/business-platinum-charge-card/68443-9-0';
+  const fixtureHtml = fullFixtureHtml();
+  let officialRequestsFulfilled = 0;
+  await context.route('https://www.americanexpress.com/**', async (route) => {
+    assert.equal(route.request().resourceType(), 'document');
+    officialRequestsFulfilled++;
+    await route.fulfill({ contentType: 'text/html', body: fixtureHtml });
+  });
+  await page.goto(amexUrl + '?test=1');
+  await page.bringToFront();
+  await reopened.locator('#inspect').click();
+  await reopened.locator('#fill:enabled').waitFor();
+  await reopened.locator('#fill').click();
+  await reopened
+    .getByText(
+      '保管庫の登録が不足、または形式が違います。登録画面で確認してください。',
+    )
+    .waitFor();
+  const fullValues = fullSentinelProfile();
+  fullValues.firstName = 'VAULT_SENTINEL';
+  await reopened.locator('#vault-file').setInputFiles({
+    name: 'profile.yaml',
+    mimeType: 'text/plain',
+    buffer: Buffer.from(
+      Object.entries(fullValues)
+        .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
+        .join('\n'),
+    ),
+  });
+  await reopened
+    .getByText(
+      '申込情報をメモリに読み込みました。Amex申込ページでフォームを検出してください。',
+    )
+    .waitFor();
+  await page.bringToFront();
+  await reopened.locator('#inspect').click();
+  await reopened.locator('#fill:enabled').waitFor();
+  await reopened.locator('#fill').click();
+  await reopened
+    .getByText(
+      '処理が終わりました。項目ごとの結果と申込画面を確認してください。申込送信はしていません。',
+    )
+    .waitFor();
+  assert.equal(await page.locator('#firstName').inputValue(), 'VAULT_SENTINEL');
+  assert.equal(await page.locator('#companyDBAName').inputValue(), '');
+  assert.equal(await page.locator('#ssn').inputValue(), '000-00-0000');
+  assert.equal(await page.locator('#doingBusinessAs').isChecked(), true);
+  assert.equal(await page.locator('#sameAddress').isChecked(), true);
+  assert.equal(
+    await page.locator('#companyStructure option:checked').textContent(),
+    'Sole Proprietorship',
+  );
+  assert.equal(
+    await page.locator('#businessPhoneNumber').inputValue(),
+    '(000) 000-0000',
+  );
+  assert.equal(await page.evaluate('window.submissions'), 0);
+  assert.ok(
+    !(await reopened.locator('#results').textContent())?.includes(
+      'VAULT_SENTINEL',
+    ),
+  );
+  const fullBlocked = await page.evaluate(runFullAutofill, {
+    command: {
+      action: 'fill',
+      source: 'local-test',
+      expectedUrl: amexUrl + '?test=1',
+      values: fullValues,
+    },
+    specs: fullFieldSpecs,
+  });
+  assert.equal(fullBlocked.state, 'blocked');
+  const wrongUrl = await page.evaluate(runFullAutofill, {
+    command: {
+      action: 'fill',
+      source: 'vault-file',
+      expectedUrl: amexUrl,
+      values: fullValues,
+    },
+    specs: fullFieldSpecs,
+  });
+  assert.equal(wrongUrl.state, 'blocked');
+  // Layered source guard prevents test data on the real destination and vault data on fixtures.
+  assert.equal(
+    (
+      await page.evaluate(runAutofill, {
+        action: 'fill',
+        source: 'local-test',
+        values: sentinel,
+      })
+    ).state,
+    'blocked',
+  );
+  await page.reload();
+  await page.locator('#firstName').evaluate((el) =>
+    el.addEventListener('input', () =>
+      setTimeout(() => {
+        (el as HTMLInputElement).value = '';
+      }, 20),
+    ),
+  );
+  assert.equal(
+    (
+      await page.evaluate(runAutofill, {
+        action: 'fill',
+        source: 'vault-file',
+        expectedUrl: amexUrl,
+        values: sentinel,
+      })
+    ).state,
+    'blocked',
+  );
+  assert.equal(await page.locator('#firstName').inputValue(), '');
+  const delayed = await page.evaluate(runAutofill, {
+    action: 'fill',
+    source: 'vault-file',
+    expectedUrl: amexUrl + '?test=1',
+    values: sentinel,
+  });
+  assert.equal(
+    delayed.fields.find((f) => f.field === 'firstName')?.status,
+    'changed',
+  );
+  await page.reload();
+  await page
+    .locator('#firstName')
+    .evaluate((el) =>
+      el.addEventListener('input', () =>
+        el.setAttribute('aria-invalid', 'true'),
+      ),
+    );
+  const invalid = await page.evaluate(runAutofill, {
+    action: 'fill',
+    source: 'vault-file',
+    expectedUrl: amexUrl + '?test=1',
+    values: sentinel,
+  });
+  assert.equal(
+    invalid.fields.find((f) => f.field === 'firstName')?.status,
+    'validation-error',
+  );
+  // Popup cannot use a stale inspected SPA URL, even if the document ID stays the same.
+  await page.reload();
+  await page.bringToFront();
+  await reopened.locator('#inspect').click();
+  await reopened.locator('#fill:enabled').waitFor();
+  await page.evaluate(() => history.replaceState(null, '', '?changed=1'));
+  await reopened.locator('#fill').click();
+  await reopened
+    .getByText(
+      '操作できませんでした。対象の申込ページまたは模擬フォームを開き、再検出してください。',
+    )
+    .waitFor();
+  assert.equal(await page.locator('#firstName').inputValue(), '');
+  for (const suffix of ['../other-card/68443-9-0', '68443-9-0/extra', 'bad']) {
+    const raw = new URL(suffix, amexUrl).href;
+    assert.equal(classifyTarget(raw), undefined);
+    await page.goto(raw);
+    assert.equal(
+      (await page.evaluate(runAutofill, { action: 'inspect' })).state,
+      'blocked',
+    );
+  }
+  assert.ok(officialRequestsFulfilled >= 7);
+  await page.goto('http://127.0.0.1:4173/autofill-fixture');
+  assert.equal(
+    (
+      await page.evaluate(runAutofill, {
+        action: 'fill',
+        source: 'vault-file',
+        expectedUrl: amexUrl + '?test=1',
+        values: sentinel,
+      })
+    ).state,
+    'blocked',
+  );
   const otherPopup = await context.newPage();
   await otherPopup.goto(`chrome-extension://${id}/popup.html`);
   await otherPopup
     .getByText(
-      'メモリの本人情報を再利用します。模擬フォームへの入力と平文保存は無効です。',
+      'メモリの本人情報を再利用します。Amex申込ページでフォームを検出してください。',
     )
     .waitFor();
   await reopened.locator('#lock').click();
@@ -285,7 +480,7 @@ try {
   });
   await reopened
     .getByText(
-      '7項目の形式を確認し、メモリに読み込みました。模擬フォームへの入力と平文保存は無効です。',
+      '申込情報をメモリに読み込みました。Amex申込ページでフォームを検出してください。',
     )
     .waitFor();
   await reopened.locator('#vault-file').setInputFiles({
@@ -295,7 +490,7 @@ try {
   });
   await reopened
     .getByText(
-      '読み込めません。7項目・二重引用符・文字数を確認してください。値やファイル名は記録しません。',
+      '読み込めません。保管庫の登録画面で保存したprofile.yamlを選択してください。値やファイル名は記録しません。',
     )
     .waitFor();
   assert.equal(await reopened.locator('[name="firstName"]').inputValue(), '');
@@ -313,7 +508,7 @@ try {
   );
   await otherPopup.close();
   console.log(
-    'PASS extension: real MV3 UI, persistent local profile/delete, memory-only vault import/lock, fixture guard, isolated fill, conservative guards; external network blocked.',
+    'PASS extension: real MV3 UI, persistent local profile/delete, memory-only vault import/lock, fixture and Amex destination/source guards, isolated fill, delayed verification; external network blocked.',
   );
 } finally {
   await context.close();

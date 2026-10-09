@@ -1,5 +1,5 @@
 /** Self-contained: Chrome serializes this function into the isolated world. */
-export function runAutofill(command: unknown) {
+export async function runAutofill(command: unknown) {
   const fields = [
     ['email', 'Email Address', 50],
     ['legalBusinessName', 'Legal Business Name', 90],
@@ -20,6 +20,7 @@ export function runAutofill(command: unknown) {
     | 'no-value'
     | 'invalid-value'
     | 'changed'
+    | 'validation-error'
     | 'failed';
   const results: { field: string; status: Status }[] = [];
   const output = {
@@ -27,20 +28,26 @@ export function runAutofill(command: unknown) {
       return { state, fields: results };
     },
   };
-  // This Phase 2B build cannot fill a real website, even if activeTab is granted.
-  if (
-    window !== window.top ||
-    location.origin !== 'http://127.0.0.1:4173' ||
-    location.pathname !== '/autofill-fixture' ||
-    location.search ||
-    location.hash
-  )
+  // Kept self-contained for Chrome serialization; tested against classifyTarget.
+  const url = new URL(location.href);
+  const kind =
+    url.href === 'http://127.0.0.1:4173/autofill-fixture'
+      ? 'fixture'
+      : url.origin === 'https://www.americanexpress.com' &&
+          /^\/en-us\/credit-cards\/apply\/business\/business-platinum-charge-card\/\d{5}-\d-\d\/?$/.test(
+            url.pathname,
+          )
+        ? 'amex'
+        : undefined;
+  if (window !== window.top || !kind || url.username || url.password)
     return output.make('blocked');
   if (!command || typeof command !== 'object' || Array.isArray(command))
     return output.make('invalid-command');
   const c = command as Record<string, unknown>;
   if (
-    Object.keys(c).some((k) => !['action', 'values'].includes(k)) ||
+    Object.keys(c).some(
+      (k) => !['action', 'values', 'source', 'expectedUrl'].includes(k),
+    ) ||
     (c.action !== 'inspect' && c.action !== 'fill')
   )
     return output.make('invalid-command');
@@ -52,6 +59,13 @@ export function runAutofill(command: unknown) {
     return output.make('invalid-command');
   if (c.action === 'inspect' && values !== undefined)
     return output.make('invalid-command');
+  if (
+    c.action === 'fill' &&
+    ((kind === 'amex' &&
+      (c.source !== 'vault-file' || c.expectedUrl !== url.href)) ||
+      (kind === 'fixture' && c.source !== 'local-test'))
+  )
+    return output.make('blocked');
   const data = (values ?? {}) as Record<string, unknown>;
   if (
     Object.keys(data).some((key) => !fields.some((f) => f[0] === key)) ||
@@ -59,12 +73,21 @@ export function runAutofill(command: unknown) {
   )
     return output.make('invalid-command');
 
+  const written: {
+    el: HTMLInputElement;
+    value: string;
+    result: { field: string; status: Status };
+  }[] = [];
   for (const [id, label, maxLength] of fields) {
     const result: { field: string; status: Status } = {
       field: id,
       status: 'missing',
     };
     results.push(result);
+    if (location.href !== url.href) {
+      result.status = 'changed';
+      continue;
+    }
     const byId = document.querySelectorAll(`#${id}`);
     const byName = document.querySelectorAll(`[name="${id}"]`);
     if (!byId.length && !byName.length) continue;
@@ -147,8 +170,19 @@ export function runAutofill(command: unknown) {
       el.dispatchEvent(new Event('change', { bubbles: true }));
       result.status =
         el.isConnected && el.value === value ? 'filled' : 'changed';
+      if (result.status === 'filled') written.push({ el, value, result });
     } catch {
       result.status = 'failed';
+    }
+  }
+  if (written.length) {
+    // Catch framework rerenders/reverts after the synchronous event handlers.
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    for (const { el, value, result } of written) {
+      if (location.href !== url.href || !el.isConnected || el.value !== value)
+        result.status = 'changed';
+      else if (el.getAttribute('aria-invalid') === 'true' || !el.validity.valid)
+        result.status = 'validation-error';
     }
   }
   // Only fixed field identifiers/statuses cross back to the extension, never DOM text/values.

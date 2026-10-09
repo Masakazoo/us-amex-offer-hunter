@@ -26,7 +26,7 @@ describe('vault template boundary', () => {
     ).toBe(' A"B ');
   });
   it.each([
-    template + '\nssn: "SENTINEL"',
+    template + '\nunknownPrivateField: "SENTINEL"',
     template + '\nfirstName: "SENTINEL"',
     template.replace('firstName: "SENTINEL"', ''),
     template.replace('firstName: "SENTINEL"', 'firstName: true'),

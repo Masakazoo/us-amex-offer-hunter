@@ -3,24 +3,32 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Autofill — Local MVP</title>
+    <title>Amex Autofill — Business Platinum</title>
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
-    <h1>Autofill <small>Local MVP</small></h1>
+    <h1>Amex Autofill <small>Business Platinum</small></h1>
     <p>
-      ローカル模擬フォーム専用。テストには意味を持たない文字列を使用してください。
+      米国Business
+      Platinumの申込ページ用。本人情報を読み込み、フォームを検出してから入力します。文字欄の既存値は保持し、選択項目は登録内容に合わせます。
     </p>
     <section aria-label="暗号化ファイルからの読み込み">
-      <label
-        >解除済み保管庫の profile.yaml を選択
-        <input type="file" id="vault-file" accept=".yaml,.yml" />
-      </label>
+      <button type="button" id="unlock-vault">保管庫から読み込む</button>
+      <p id="native-status" role="status">
+        初回はパスワード入力だけで読み込みます。ファイル選択とTerminal操作は不要です。
+      </p>
+      <details>
+        <summary>手動でファイルを選択する</summary>
+        <label
+          >解除済み保管庫の profile.yaml を選択
+          <input type="file" id="vault-file" accept=".yaml,.yml" />
+        </label>
+      </details>
       <button type="button" id="lock" disabled>メモリの本人情報を削除</button>
       <p class="note">
         読み込みはメモリ内のみ。ブラウザ終了・拡張再読み込みで消えます。
-        読み込み後は保管庫を取り出してください。DBAなしは空文字のままにします。
-        本人情報の正しさ・申込資格の検証ではありません。この版では読み込んだ情報をフォームへ入力しません。
+        自動読み込み後は保管庫も自動で閉じます。手動選択の場合だけ取り出してください。DBAなしは空文字のままにします。
+        住所・電話・税ID・生年月日・収入・プルダウン・チェック・カードデザインも登録内容から入力します。申込送信と契約への同意は行いません。下欄には従来の7項目だけをマスク表示します。
       </p>
     </section>
     <form id="profile" autocomplete="off"></form>
@@ -29,14 +37,14 @@
       ><button type="button" id="delete">保存情報を全削除</button>
     </div>
     <p class="note">
-      保存はこの端末の拡張ストレージ（暗号化なし）。同期・ログ出力は行いません。
+      手入力と「端末に保存」はローカル模擬フォームのテスト専用です。Amexでは保管庫から読み込んだ情報だけを使います。
     </p>
     <div class="buttons">
       <button type="button" id="inspect">フォームを検出</button
       ><button type="button" id="fill" disabled>Fill Now</button>
     </div>
     <p id="message" role="status" aria-live="polite">
-      入力内容を保存して、模擬フォームを検出してください。
+      Amex申込ページを開き、保管庫から読み込んで「フォームを検出」を押してください。
     </p>
     <ul id="results" aria-label="項目ごとの結果"></ul>
     <script type="module" src="popup.js"></script>

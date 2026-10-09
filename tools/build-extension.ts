@@ -12,4 +12,23 @@ await build({
 for (const name of ['manifest.json', 'popup.html', 'popup.css']) {
   await copyFile(`apps/extension/${name}`, `dist/extension/${name}`);
 }
-console.log('PASS extension build: dist/extension (local fixture only).');
+await build({
+  entryPoints: ['tools/profile-editor/editor.ts'],
+  bundle: true,
+  format: 'esm',
+  target: 'chrome121',
+  outdir: 'dist/profile-editor',
+  sourcemap: false,
+});
+await build({
+  entryPoints: ['tools/native-vault/host.ts'],
+  bundle: true,
+  platform: 'node',
+  format: 'cjs',
+  target: 'node24',
+  outfile: 'dist/native-vault/host.cjs',
+  sourcemap: false,
+});
+console.log(
+  'PASS extension build: dist/extension (Business Platinum + local fixture).',
+);

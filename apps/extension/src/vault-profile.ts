@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { fieldSpecs, profileSchema } from './profile.js';
+import { fullFieldSpecs, fullProfileSchema } from './full-profile.js';
 
 export const sessionProfileKey = 'vaultProfileSessionV1';
 export const maxProfileBytes = 8192;
@@ -7,7 +7,7 @@ export const sessionProfileSchema = z
   .object({
     version: z.literal(1),
     source: z.literal('vault-file'),
-    values: profileSchema,
+    values: fullProfileSchema,
   })
   .strict();
 
@@ -27,13 +27,13 @@ export function parseVaultProfile(source: string) {
       if (!match) return undefined;
       const key = match[1]!;
       if (
-        !fieldSpecs.some(([field]) => field === key) ||
+        !fullFieldSpecs.some((field) => field.key === key) ||
         Object.hasOwn(values, key)
       )
         return undefined;
       values[key] = JSON.parse(match[2]!);
     }
-    const parsed = profileSchema.safeParse(values);
+    const parsed = fullProfileSchema.safeParse(values);
     return parsed.success ? parsed.data : undefined;
   } catch {
     // Never expose parser errors: they can include the source value.

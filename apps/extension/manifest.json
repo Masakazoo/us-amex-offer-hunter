@@ -1,12 +1,15 @@
 {
   "manifest_version": 3,
-  "minimum_chrome_version": "121",
-  "name": "Amex Autofill — Local MVP",
-  "version": "0.3.0",
-  "description": "ローカル模擬フォーム用のAutofill検証版。実サイトには入力しません。",
-  "permissions": ["storage", "scripting"],
+  "minimum_chrome_version": "127",
+  "name": "Amex Autofill — Business Platinum",
+  "version": "0.6.0",
+  "description": "保管庫の申込情報から米国Business Platinumの入力・選択を支援。申込送信は行いません。",
+  "permissions": ["storage", "scripting", "nativeMessaging"],
   "background": { "service_worker": "worker.js", "type": "module" },
-  "host_permissions": ["http://127.0.0.1/*"],
+  "host_permissions": [
+    "http://127.0.0.1/*",
+    "https://www.americanexpress.com/en-us/credit-cards/apply/business/business-platinum-charge-card/*"
+  ],
   "action": { "default_popup": "popup.html" },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'none'; connect-src 'none'"

@@ -1,70 +1,83 @@
-# Autofill MVP — Phase 2B
+# Amex Autofill — Business Platinum (v0.6.0)
 
-Chrome MV3 / Vanilla TypeScript。7項目の端末内profile、明示的な検出・Fill Now、編集・保存・全削除を実装。
-**このビルドの入力先は `http://127.0.0.1:4173/autofill-fixture` だけ。実Amexの入力確認は未実施。**
+米国Business Platinum申込ページの入力・選択を、本人の暗号化保管庫から行うMV3拡張。申込送信、カード承諾、契約同意、CAPTCHAは操作しない。
 
-## 試す
+**Draft / 設計見直し中**: 以下は実装した操作フロー。実機ではパスワード入力後に結果が分からない問題が残るため、自動読込が使える状態まで完成したとはしない。[見直し方針](../../docs/AUTOFILL-REDESIGN.md)参照。
 
-1. `npm ci` と `npm run build:extension` を実行。
-2. `npm run fixture:autofill` でローカル模擬フォームを起動。
-3. Braveの拡張管理画面（Chromeも可）でデベロッパーモードを有効にし、`dist/extension` を「パッケージ化されていない拡張」として読み込む。
-4. 上記ローカルURLを開き、拡張のpopupを開く。
-5. 意味を持たない文字列を入力し「端末に保存」。popupを開き直して保存内容を確認。
-6. 「フォームを検出」で項目ごとの状態を確認し、Fill Nowで空欄に反映。
-7. 「保存情報を全削除」で拡張内の保存値とpopupの入力欄を消す。対象ページの既存値は消さない。
+## 最初の登録
 
-対象はEmail Address、Legal Business Name、Business Name on Card、Company DBA Name、First Name、Last Name、Name on Card。
-入力内容の編集は「端末に保存」で次回へ保存する。Fill Nowはpopupの現在値を使い、自動保存はしない。
+1. `npm run build:extension`、`node --import tsx tools/profile-editor/install.ts` を実行。Chrome 127以降の拡張管理画面で `dist/extension` を読み込む。
+2. 前の保管庫が開いていれば、そのTerminalでEnterを押して閉じる。
+3. 保管庫と同じフォルダの `Edit Full Profile.command` を本人が開く。パスワードはTerminalに本人が入力する。
+4. Chromeに出る登録画面で不足情報を登録し「保管庫に保存」。既存の7項目は引き継ぐ。
+5. 保存後はTerminalでEnterを押して保管庫を閉じる。下記の補助プログラムを一度だけ登録する。
+6. 実Amex申込ページで拡張をクリックし、macOSのダイアログに保管庫のパスワードを入力。「フォームを検出」→「Amexへ入力」。項目ごとの結果と実ページを確認する。
 
-## 保存と権限
+次回は拡張のクリックとパスワード入力だけ。読込後の取り出しは自動で行い、同じブラウザsessionに情報があれば再利用する。訂正時だけ登録画面を使う。旧7項目だけのファイルも読めるが、実Amexへの全項目入力は不足項目の登録まで停止する。
 
-ユーザーの「一回入力したら使い回せるようにする」という方針により `chrome.storage.local` にversion 1のstrict profileを保存する。
-暗号化なしの端末内保存。sync、サーバー送信、console、研究Observationへの出力はしない。端末・ブラウザprofileへアクセスできる人からの秘匿は保証しない。
-SSN、税ID、DOB、住所、電話、収入、自由な追加項目はprofileスキーマが拒否する。
-保存へのアクセスはTRUSTED_CONTEXTSに制限。拡張権限はstorage/scriptingとloopback hostのみ。
-ページへの注入関数に渡す値は実行中のメモリ上だけで扱い、戻り値には固定field IDとstatusしか含めない。
+## 補助プログラムの登録（macOS / Chrome）
+
+ローカル保管庫への接続をこの拡張に許可する設定。拡張管理画面のIDを確認し、登録への承認を得てから実行する。
+
+```sh
+npm run build:extension
+node --import tsx tools/native-vault/install.ts <extension-id>
+```
+
+Chromeを `--user-data-dir` 付きで起動している場合、Chrome 146以降のNative Messaging設定はその専用ディレクトリ内に置く必要がある。通常プロファイルに登録しても接続できないため、上のコマンドの末尾へ実際のuser-dataディレクトリを引用符付きで指定する。指定先は既存のディレクトリだけを受け付け、プロファイル本文は読まない。
+
+インストーラーは暗号化ファイルを読まず、本人のApplication Support内に専用readerと、その拡張IDだけを許可するChromeのNative Messaging設定を置く。更新時も同じコマンドでreaderを更新し、拡張管理画面から再読み込みする。通常のBrave設定には追加しない。
+
+Amexの対象ページで実際のツールバーpopupを開いたときだけ自動読込を開始する。キャンセル・接続失敗の後は「保管庫から読み込む」で再試行。解除ダイアログでpopupが閉じてもworkerが処理し、同じタブ・URLが開いていれば完了後にpopupを再表示する。別のタブに移動していれば、本人が拡張を開き直す。
+
+補助プログラムを使わない場合は「手動でファイルを選択する」を展開し、従来の `Unlock Profile.command` とファイル選択を使える。この場合だけ、読込後のTerminalでのEnterが必要。
+
+## 対象
+
+- メール、事業名・DBA、カード表示名、氏名・ミドルイニシャル
+- 事業住所・ZIP・市・州・電話、業種、事業形態、営業年数、従業員数、売上・利用見込額、Federal Tax ID、役職
+- 自宅住所・ZIP・市・州、携帯番号、SSN、生年月日、総収入・非課税収入
+- DBAなし、住所共通、カードデザイン・素材
+
+すべて本人が登録した値から選ぶ。個人事業主ではFederal Tax IDを省略、DBAなしなら屋号欄を省略、住所共通なら自宅住所の重複入力を省略する。任意のカードデザインが空欄なら現在の選択を保持する。未知・曖昧・無効な要素は操作せず状態を表示する。
 
 ## 入力契約
 
-- main frameの固定URLだけ。query/hash付きURLや他サイトを拒否。
-- 現在のDOMのid/nameがそれぞれ一意で同じinputを指し、labelが確認済みの文字列と一致すること。
-- input/textのみ。未知label、role付きcustom control、非表示、disabled（親fieldsetも含む）、readonly、inert、既存値はスキップ。
-- 空値は入力しない。実測上限と現在のmaxlength/minlengthに従い、切り捨て・正規化はしない。未知pattern付きはスキップ。
-- 検出したtab/document IDにFill Nowを限定。再読込・別tabへ変わったら再検出が必要。
-- 入力直前にも各項目を検証。native setter + input/changeを使い、同期イベントでDOMが置換・変更された場合はchangedと表示する。
-- click、focus、blur、submit、accept、navigationは実行しない。入力イベントを受けたページ自身の通信・動作を阻止する機能ではない。
-- framework固有の非同期更新、全項目の原子的更新やrollbackは未対応。実Amexへの適合性は未確認。
+公式HTTPS hostの `/en-us/credit-cards/apply/business/business-platinum-charge-card/NNNNN-N-N`（末尾slash可）だけ。query/hashはAmexの遷移情報としてメモリ内で扱い、保存しない。検出したtab、document、完全URLを入力直前に照合する。
 
-## 検証
+- 固定id/nameの一意性、関連label、要素種別、可視・有効状態を確認する。装飾で透明なcheckbox/radioは、検証した関連labelを介して操作する。
+- radioは動的IDに依存せず、既知group prefixと正確な関連labelの一致で選択する。
+- プルダウン・チェック・radioは登録した明示的な選択へ合わせる。文字欄の既存値は一致を確認し、不一致なら上書きしない。
+- 事業形態・DBA指定を先に反映し、住所入力後に住所共通を反映する。再描画後に次の要素を取り直す。
+- phone/SSN/taxの既知の区切り文字、金額のカンマ・小数、日付の区切りだけを照合時に扱う。値の切り捨てはしない。
+- 住所候補は番地・通りとZIPが一致する一意な候補だけを選ぶ。候補が曖昧なら「住所候補の確認が必要」。市・州がまだ表示されない場合は「現在は未表示」と報告する。存在しない欄を成功と扱わない。
+- input/changeと必要なfocus/blurを使う。入力後に500ms待って、値の保持・接続・aria-invalid・HTML validityを照合する。ページ自体の通信を遮断する機能ではない。
+- 固定のfield ID・状態だけを返す。値・raw URL・例外本文は返さない。非同期処理の完了・サーバー受理・原子的な全項目更新は保証せず、結果を本人が確認する。
 
-`npm run check`、`npm run test:extension`。CIは`PROBE_TEST_BROWSER=chromium`を指定。
-実MV3のpopup→保存→再読込→検出→isolated world入力→結果表示→削除を検証する。
-外部通信を拒否し、loopback模擬フォームと当該拡張のリソースだけを許可。値は意味を持たないsentinelのみ。
-ブラウザprofileはテストの一時領域で破棄し、スクリーンショット・trace・HARを作らない。
+## 保存と登録画面
 
-参考: [Chrome scripting API](https://developer.chrome.com/docs/extensions/reference/api/scripting)、[Playwright extension testing](https://playwright.dev/docs/chrome-extensions)。
+正本は暗号化DMG内の `profile.yaml`。拡張では `TRUSTED_CONTEXTS` の `storage.session` のみを使い、ブラウザ終了・拡張更新・明示削除で消える。対象外ページや模擬フォームへ本人情報を渡さず、local/syncへも保存しない。
 
-## 次の境界
+Native readerは呼出元IDと固定コマンドだけを受け付け、任意のパスやコマンド、パスワードを拡張から受け取らない。パスワードはmacOSの非表示入力欄からreaderへ渡し、暗号化確認済みDMGを読み取り専用で解除する。symlink・過大ファイルを拒否し、取り出し成功後にだけ検証済みprofileを拡張へ返す。平文ファイル・パスワード保存・ネットワーク通信・生のエラーログは作らない。bufferは使用後に消去するが、OSやランタイムの全メモリのゼロ化を保証するものではない。
 
-実Amex対応は別途、本人の正しい情報・実際の申込意思を確認して進める。現在のmanifest/URL guardに実Amexの許可はない。
-住所combobox、select、checkbox、税ID/SSN/DOB/収入は今回対象外。
-Offer Labの高額オファー判定機能は未実装。用途分類・条件比較には別の観測契約が必要で、通信の時刻一致だけで判定を推測しない。
-Playwrightのmain frame DOM自動取得問題は未解決。Chrome DevTools MCPでのDOM取得検証は未実施で、過去のComputer Use経由のDevTools確認とは区別する。実AmexでのAutofill検証を含め、PR #6マージ後の別スレッドへ引き継ぐ。
+通常のキャンセル・失敗・終了シグナルでは取り出しを試みる。強制終了やOS障害では読み取り専用mountやlockが残る可能性があり、その場合は自動再試行せず手動復旧が必要。既存の編集用・手動解除用mountを勝手に取り出すことはしない。
 
-## 暗号化保管庫のYAMLをメモリへ読み込む
+登録ランチャーはDMGの暗号化を確認して編集用にマウントし、localhostの一時登録画面を開く。サーバーは127.0.0.1・ランダムport・一度限りのcapability URLを使用し、Host/Origin/Content-Typeを検証。ログに値・ファイル名・エラー詳細を出さない。外部script・通信・フレームをCSPで禁止する。
 
-本人情報は既存の暗号化ディスクイメージ内の `profile.yaml` を正本にする。内容やパスワードをCodexへ渡さず、本人が拡張のファイル選択で読み込む。
+ファイルへの書込みは選択された固定ディレクトリ内だけ。symlinkを拒否し、同時変更を検出し、同じディレクトリに0600の一時ファイルを作って原子的に置換する。実運用ではランチャーがこのディレクトリを暗号化保管庫内に限定する。保存後はフォームを消去してサーバーを終了し、拡張への読込み後に本人がTerminalでEnterを押して保管庫を閉じる。自動テストは一時フォルダだけを使い、本人の保管庫には触れない。
 
-1. `npm run build:extension` 後、ブラウザの拡張管理から `dist/extension` を読み込むか、既存の拡張を再読み込みする。
-2. 本人が `tools/profile-vault/Unlock Profile.command` をTerminalで開き、暗号化パスワードを入力する。固定のローカル保管庫を読み取り専用でマウントし、Finderでファイルを示す。通常の編集ランチャーとは別で、内容を表示・変更しない。
-3. 拡張の「解除済み保管庫の profile.yaml を選択」でファイルを選ぶ。7項目の形式検査に成功すると、値はマスク表示される。編集は保管庫の正本側で行う。
-4. 起動したTerminalへ戻ってEnterを押し、保管庫を閉じる。拡張を開き直してもブラウザsession中は再利用できる。入力完了後のファイルをチャットやGitへ貼らない。
-5. 利用後は「メモリの本人情報を削除」。他に開いている拡張画面にも削除を反映する。ブラウザ終了・拡張再読み込みでもsession情報は消える。再利用時はファイル選択だけで、本人情報の再入力は不要。
+限定YAMLは固定キーと二重引用符文字列のみ。任意キー、alias、タグ、重複、入れ子を拒否する。登録画面が生成するため本人がYAML構文を書く必要はない。値の形式検査は本人性・情報の正しさ・申込資格の審査ではない。
 
-この版は実Amexへの入力権限を持たない。本人情報を模擬フォームへ送らないため、ファイル読込モードではFill Nowと「端末に保存」を無効化し、イベント処理側でも拒否する。既存の手入力ローカルテストモードは維持する。DBA空文字は「指定なし」として保持するが、実サイトのDBAなしcheckbox操作は未実装。
+## 検証と残る確認
 
-形式は7つの固定キーと二重引用符文字列だけの限定YAML。コメント・空行・BOM・CRLFは許可し、未知/重複/欠落キー、暗黙型、タグ、alias、入れ子は拒否する。二重引用符内のescapeはJSON互換のみ。8 KiB上限、各項目の既存文字数制約を検査し、正規化・切り捨てはしない。これは形式検査であり、emailの到達性や正式名・事業実態・申込資格を認証するものではない。
+`npm run check`、`npm run test:extension`、`npm run test:full-autofill`、`npm run test:profile-editor`。
 
-読込値は `chrome.storage.session` にのみ保持し、TRUSTED_CONTEXTSに限定する。local/sync、console、ファイル名、研究ログへ書かない。失敗時は固定メッセージだけを表示し、置換前のsession情報も破棄する。OS crash dump等やブラウザメモリ自体の完全なゼロ化は保証しない。以前手入力で保存したlocal情報は自動削除しないが、session情報があればそちらを優先する。「保存情報を全削除」はlocal/session双方を消し、暗号化ファイルは変更しない。
+Native readerは `npm run test:native-vault`（macOSの使い捨て暗号化DMG）と `npm run test:native-extension`（Chrome for Testing 146以降、テスト用拡張・ホスト・profileを一時ディレクトリ内で完結）でも検証する。後者は実際のブラウザとnative hostの接続を使うが、ホストは合成値を返す専用品で、本人の保管庫を開く機能を持たない。
 
-実Amexへの有効化、実入力後の照合は別途の準備・承認が必要。テストは合成sentinelのみを使用し、本人の保管庫は開かない。
+自動テストは外部通信を遮断。公式originもroute.fulfillで合成HTMLに応答し、意味のない文字列・ゼロの数値・非現実的な日付のmarkerだけを用いる。個人事業主/法人、同一/別住所、radio、mask、曖昧な住所候補、既存値、再描画、URL変更、登録画面の保存境界を検証する。
+
+実機ではv0.4.0の7項目の本人入力と結果表示、およびv0.5.0の残りの実フォーム検出を確認済み。v0.5.0の全項目版は本人から実入力成功の報告を受けたが、全項目の値やサーバー側受理を確認したものではない。v0.6.0は本人承認のもとChromeへの補助プログラム登録と拡張の更新・有効状態を確認済み。専用Chromeプロファイルへの登録先を修正してパスワード入力画面は出るようになったが、入力後の結果表示は本人から動作不明と報告され、未解決。
+
+## ローカル開発用
+
+`npm run fixture:autofill` は `http://127.0.0.1:4173/autofill-fixture` のみ。従来の7項目の手入力・storage.local保存はテスト用として残す。その値を実Amexには渡さず、保管庫から読み込んだ情報を模擬フォームへ渡さない。

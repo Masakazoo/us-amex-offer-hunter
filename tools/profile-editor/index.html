@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Amex 申込情報の登録</title>
+    <link rel="stylesheet" href="editor.css" />
+  </head>
+  <body>
+    <main>
+      <h1>申込情報を一度だけ登録</h1>
+      <p>
+        保存先は解除中の暗号化保管庫です。この画面からAmexへは送信しません。
+      </p>
+      <p>
+        既存の登録内容は読み込み済みです。未登録の項目を補ってください。任意項目は空欄にできます。
+      </p>
+      <form id="editor" autocomplete="off">
+        <div id="fields"></div>
+        <button id="save" type="submit" disabled>保管庫に保存</button>
+      </form>
+      <p id="status" role="status">読み込んでいます…</p>
+      <script type="module" src="editor.js"></script>
+    </main>
+  </body>
+</html>
