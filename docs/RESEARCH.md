@@ -1,7 +1,35 @@
 # Research log
 
-更新日: 2026-10-09（Asia/Tokyo）。Issue #4 / Phase 2Aの実測記録とMCP調査の準備状況。
-**主要DOMはComputer UseとDevToolsで確認できたが、probeの自動DOM取得は未解決。Issueは未完了とする。**
+更新日: 2026-10-10（Asia/Tokyo）。Issue #4 / Phase 2Aの実測記録。最新の実サイト観測は2026-10-09、10-10は既存記録の整理のみで再アクセスしていない。
+
+## 現在の到達点（2026-10-10整理）
+
+### Confirmed
+
+- Chrome DevTools MCPによる実Amex申込ページのmain frame DOM取得と独立した最小関数の評価に成功した。native controlsは34件、iframeは5件だった。
+- 既存Autofillの対象7項目はid/nameが各1件で同一要素を指し、labelと主要属性が一致した。29秒後と同一browser context内の再訪1回でも主要メタデータは一致した。viewport内外は別に扱っている。
+- このMCP観測では値のread/write、focus/blur、選択変更、Submit Application、Accept Cardは行っていない。過去のprobe調査には無入力focus/blurがあるため、観測回ごとの操作範囲を混同しない。
+- 詳細な証拠と限界は末尾の「同日追記: 再起動後のネイティブMCP実フォーム観測」に記録している。7項目の再現性は確認した条件に限られ、36項目すべての動作保証ではない。
+
+### Hypothesis
+
+- MCPとPlaywrightの関数転送、実行context、起動条件等の差が評価結果に関係する可能性はある。同一target/sessionの比較ではなく、原因を特定した証拠はない。
+
+### Unknown / 残る課題
+
+- Playwright `frame.evaluate()` のmain frame評価失敗の根本原因と、MCPとの実行環境差の影響。
+- 36項目全体の再現性、入力後の動的DOM・validation、MV3 ISOLATED worldでの適合性。
+- Network endpointの役割・因果関係、高額オファーの判定ロジック。MCP成功によってこれらが解明されたわけではない。
+
+### 時系列と次フェーズ
+
+1. 2026-10-07〜10-08: probe / Computer Use / DevToolsで調査。主要DOMの確認は進んだが、Playwrightのmain frame評価失敗は未解決。
+2. 2026-10-09: MCP未接続時の準備記録 → MCP登録・ローカル起動確認 → 再起動後のネイティブMCPによる実フォーム観測成功、の順に追記した。以下の「MCP未実施」は各時点の記録として保持する。
+3. 2026-10-10: PR #17のUX仕様を含むmainへ追従し、PR #7の既存成果を整理。Issue #4はOpenを維持する。
+
+Epic #9の次段階はIssue #10の暗号化プロフィール保存・セッション寿命の技術検証。既存Playwright不具合の解決はAutofill再設計のブロッカーとしない。PR #8の36項目定義・入力ロジック・安全ガード・テストは再利用候補として同Issueの棚卸しを参照し、未検証の実DOM挙動は後続で確認する。本整理ではIssue #10の技術検証・実装には着手していない。
+
+## 過去の調査記録（2026-10-07〜10-09）
 
 ## 条件・証拠
 
