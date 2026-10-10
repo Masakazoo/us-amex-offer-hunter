@@ -34,7 +34,7 @@ PoCの正本は `tools/security-spike/crypto.ts` のstrict schema。概形:
 }
 ```
 
-- `getRandomValues`でsalt 128bit、IV 96bitを生成。**書込ごとに新salt→新鍵、新IV**。失敗後の再試行も作り直す。確率的衝突の可能性はゼロではないが、カウンタ復元・巻き戻りによる再利用を避ける。壊れた乱数源への耐性は保証しない。
+- `getRandomValues`でsalt 128bit、IV 96bitを生成。**新規登録/PW変更では新salt→新鍵。すべての暗号化で新IV**。通常編集はPWを保持していないので、sessionの鍵と既存salt/KDFを使い、新revision/IVで暗号化する。失敗後の再試行も新IVを生成し、直前IVとの一致は拒否。96bit乱数方式は確率的であり完全な一意性保証ではない（同一鍵で100万回でも衝突確率は概算6.3×10^-18）。個人の低頻度更新が前提で、大量暗号化用途へ流用しない。壊れた乱数源やsnapshot巻戻しへの完全な耐性は保証しない。
 - 全メタデータを固定順配列にしてUTF-8 JSON化しGCMのAADへ含める。タグは128bit。metadataの変更も認証失敗にする。
 - base64長さ、形式、対応version/algorithm/iteration、ciphertext上限を復号前に検査。未知versionは読取拒否して保持。攻撃者指定の巨大KDF反復数を実行しない。
 - 誤PWと正しく構造化された暗号文の改ざんは同じ `AUTH_OR_CORRUPT`。両者を暗号だけで確実に区別できない。別のPW照合ハッシュは保存しない。
@@ -94,7 +94,7 @@ JavaScriptのstring、GC、structured serialization、Web Crypto内部コピー�
 
 session削除失敗ならロック成功と表示せず、そのWorkerでは新規復号を止める。本番はretry/拡張再読込による安全側復旧を用意する。PoCにはsession API故障時の永続的な拒否ラッチは未実装。
 
-**マイグレーション:** envelope versionとpayload versionを独立管理。未知versionは保持し非対応エラー。既知旧versionは解除後、メモリ内でvalidation/migration、新salt/IV/現行KDFへ再暗号化してから同じcommit手順。旧暗号文を残す一時退避を導入するなら、旧PWでも読める期間と削除完了を明示し、復旧テストを追加する。今回はmigration engineを作らない。
+**マイグレーション:** envelope versionとpayload versionを独立管理。未知versionは保持し非対応エラー。既知旧versionはPWによる解除時にメモリ内でvalidation/migration、新salt/IV/現行KDFへ再暗号化してから同じcommit手順。既存sessionしかない場合、payloadだけのmigrationは既存鍵+新IVで行えるが、salt/KDF更新にはPW再入力が必要。PWを保存して回避しない。旧暗号文を残す一時退避を導入するなら、旧PWでも読める期間と削除完了を明示し、復旧テストを追加する。今回はmigration engineを作らない。
 
 ## 7. 脅威モデル
 
