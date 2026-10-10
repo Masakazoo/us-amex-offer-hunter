@@ -6,6 +6,29 @@
 - 既存実装の参照元: [Draft PR #8](https://github.com/Masakazoo/us-amex-offer-hunter/pull/8)（**一括マージしない**）
 - この文書はUI/UXの合意済み仕様。技術的実現性・暗号強度・Chromeのセッション寿命は[#10](https://github.com/Masakazoo/us-amex-offer-hunter/issues/10)で検証し、仕様上の制約が判明したときのみ明示的に再相談する。
 
+## 画面デザイン参考（Codex向け）
+
+以下のSVGは**実装時に参照する画面イメージ**です。UIの役割・画面構成・状態・ラベルを伝える目的で作成しており、厳密なピクセル指定ではありません。**動作とセキュリティの要件は本仕様書本文が正本**です。
+
+### 1. Popupの5状態
+
+![Amex Autofill Popup 5 states](assets/autofill-popup-states.svg)
+
+[Popup UI画像を単独表示](assets/autofill-popup-states.svg)
+
+### 2. 初回登録・プロフィール設定
+
+![Amex Autofill profile settings](assets/autofill-profile-settings.svg)
+
+[プロフィール設定画面の画像を単独表示](assets/autofill-profile-settings.svg)
+
+実装時の注意：
+- 設定画面は**事業情報/個人情報/カード設定/セキュリティ**の4区分。画像は事業情報タブの一例であり、他タブは本文に従う。
+- **マスターパスワード必須**。ロック解除だけでは入力しない。申込ページを自動検出してから、ユーザーの明示クリックで入力する。
+- Popupの結果件数と設定画面の値は**説明用の架空例**であり、テストの期待値・実Amexの事実を意味しない。
+- Submit/Accept/同意/CAPTCHAは自動操作しない。暗号文だけ永続保存し、平文値はUI・ログ・Issue/PRに流さない。
+- SVGには実データ・トークン・拡張秘密は含めていない。ロゴ・色・余白は製品固有の厳密なブランド再現ではない。
+
 ## 1. 目標と原則
 
 **最初に一度だけ申込情報を登録。以後は対象申込フォームを開いて拡張を起動し、未解除ならパスワードを入力し、自動入力ボタンで入力する。** 最後の申込確認と送信は常に人間が行う。
