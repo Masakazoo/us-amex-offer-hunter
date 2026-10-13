@@ -213,7 +213,7 @@ try {
   console.log(
     'PASS release: settings registration, legacy record ignored/preserved, encrypted persistence and locked restart without Chrome reinstall',
   );
-  const target = await ctx.newPage();
+  let target = await ctx.newPage();
   await target.goto(base);
   let popup = await ctx.newPage();
   await popup.goto(`chrome-extension://${id}/popup.html`);
@@ -424,21 +424,39 @@ try {
   );
   manifest.version = '0.4.1';
   await writeFile(join(extension, 'manifest.json'), JSON.stringify(manifest));
-  const oldWorker = ctx
-    .serviceWorkers()
-    .find((worker) => worker.url().endsWith('/worker.js'))!;
-  const replaced = ctx.waitForEvent('serviceworker', {
-    predicate: (worker) =>
-      worker !== oldWorker && worker.url().endsWith('/worker.js'),
-  });
-  await settings.evaluate(() => {
-    setTimeout(() => chrome.runtime.reload(), 100);
-  });
-  const newWorker = await replaced;
-  assert.equal(
-    await newWorker.evaluate(() => chrome.runtime.getManifest().version),
-    '0.4.1',
-  );
+  if (chromeMode) {
+    const oldWorker = ctx
+      .serviceWorkers()
+      .find((worker) => worker.url().endsWith('/worker.js'))!;
+    const replaced = ctx.waitForEvent('serviceworker', {
+      predicate: (worker) =>
+        worker !== oldWorker && worker.url().endsWith('/worker.js'),
+    });
+    await settings.evaluate(() => {
+      setTimeout(() => chrome.runtime.reload(), 100);
+    });
+    const newWorker = await replaced;
+    assert.equal(
+      await newWorker.evaluate(() => chrome.runtime.getManifest().version),
+      '0.4.1',
+    );
+  } else {
+    // Command-line-loaded Chromium extensions can become blocked on runtime.reload.
+    // This branch tests a versioned restart, not a UI-installed Chrome reload.
+    const previousId = id;
+    await ctx.close();
+    ({ context: ctx, id } = await launch());
+    assert.equal(id, previousId);
+    const updatedWorker = ctx
+      .serviceWorkers()
+      .find((worker) => worker.url().endsWith('/worker.js'))!;
+    assert.equal(
+      await updatedWorker.evaluate(() => chrome.runtime.getManifest().version),
+      '0.4.1',
+    );
+    target = await ctx.newPage();
+    await target.goto(base);
+  }
   // Extension-owned tabs may be closed or invalidated by reload; create new documents.
   settings = await ctx.newPage();
   await settings.goto(`chrome-extension://${id}/settings.html`);
@@ -459,10 +477,12 @@ try {
   await state(popup, 'vault-state', 'ロック中');
   await unlock(popup);
   await target.reload();
+  await popup.reload();
+  await target.bringToFront();
   await fill(popup);
   await noSubmit(target);
   console.log(
-    'PASS release: keep OFF consumes unlock; versioned unpacked update preserves ciphertext, expires session, requires password and remains usable',
+    `PASS release: keep OFF consumes unlock; versioned ${chromeMode ? 'Chrome runtime reload' : 'Chromium browser restart (not runtime reload)'} preserves ciphertext, expires session, requires password and remains usable`,
   );
   // Product reset affects its own vault only. The seeded legacy record is not migrated/deleted.
   await settings.bringToFront();
