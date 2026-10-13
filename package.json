@@ -18,7 +18,8 @@
     "build:extension": "node --import tsx tools/build-extension.ts",
     "fixture:autofill": "node --import tsx tools/autofill-fixture/server.ts",
     "test:extension": "npm run build:extension && node --import tsx tests/extension-smoke.ts",
-    "test:security": "node --import tsx tools/security-spike/browser.ts"
+    "test:security": "node --import tsx tools/security-spike/browser.ts",
+    "test:vault": "node --import tsx tools/vault-test/browser.ts"
   },
   "dependencies": {
     "playwright": "1.63.0",
