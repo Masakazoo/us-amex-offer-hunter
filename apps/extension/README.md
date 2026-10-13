@@ -1,6 +1,10 @@
-# Autofill MVP — Phase 2B
+# Amex Autofill 拡張
 
-Chrome MV3 / Vanilla TypeScript。7項目の端末内profile、明示的な検出・Fill Now、編集・保存・全削除を実装。
+Chrome MV3 / Vanilla TypeScript。暗号化された36項目のプロフィールを登録・編集する設定タブを追加しています。拡張アイコンのコンテキストメニューから「オプション」、または拡張管理の「拡張機能のオプション」で開きます。
+
+設定は事業情報 / 個人情報 / カード設定 / セキュリティの4区分。12文字以上のマスターパスワードが必須です。保存・PW変更後はロックされます。PWは復旧できず、忘れた場合は明示確認後に登録情報を初期化します。詳しくは[設定画面の操作・検証・限界](../../docs/PROFILE-SETTINGS.md)。
+
+既存Popupは7項目の合成fixture用です。暗号化設定とはまだ連携しておらず、実プロフィールを入力しないでください。PopupとAutofillの統合は#13です。以下は既存の模擬フォーム用手順です。
 **このビルドの入力先は `http://127.0.0.1:4173/autofill-fixture` だけ。実Amexの入力確認は未実施。**
 
 ## 試す
@@ -16,7 +20,7 @@ Chrome MV3 / Vanilla TypeScript。7項目の端末内profile、明示的な検�
 対象はEmail Address、Legal Business Name、Business Name on Card、Company DBA Name、First Name、Last Name、Name on Card。
 入力内容の編集は「端末に保存」で次回へ保存する。Fill Nowはpopupの現在値を使い、自動保存はしない。
 
-## 保存と権限
+## 既存fixture Popupの保存と権限
 
 ユーザーの「一回入力したら使い回せるようにする」という方針により `chrome.storage.local` にversion 1のstrict profileを保存する。
 暗号化なしの端末内保存。sync、サーバー送信、console、研究Observationへの出力はしない。端末・ブラウザprofileへアクセスできる人からの秘匿は保証しない。
@@ -36,6 +40,8 @@ SSN、税ID、DOB、住所、電話、収入、自由な追加項目はprofile�
 - framework固有の非同期更新、全項目の原子的更新やrollbackは未対応。実Amexへの適合性は未確認。
 
 ## 検証
+
+設定タブは`npm run test:settings`、保管層は`npm run test:vault`。以下は既存fixtureの検証です。
 
 `npm run check`、`npm run test:extension`。CIは`PROBE_TEST_BROWSER=chromium`を指定。
 実MV3のpopup→保存→再読込→検出→isolated world入力→結果表示→削除を検証する。

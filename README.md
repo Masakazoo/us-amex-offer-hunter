@@ -1,5 +1,7 @@
 # US Amex Application Support / Offer Lab
 
+**プロフィール設定を追加（#12）**: 拡張の「オプション」から、日英併記の36項目を暗号化して登録・編集できます。パスワードは必須です。既存の合成fixture用Popupとの統合は#13で行います。[設定画面の操作・検証](docs/PROFILE-SETTINGS.md)。
+
 US American Express申込を人間が管理しながら支援するための調査プロジェクトです。
 現在は **Phase 2B（ローカルAutofill MVP）**。Chrome Manifest V3拡張で、7項目のプロフィール保存・再利用・削除と「フォームを検出」→「Fill Now」を実装し、ローカル模擬フォームで動作確認済みです。実Amexサイトへの入力は未対応・未検証で、Playwrightのmain frame DOM自動取得問題も未解決です。
 

@@ -89,7 +89,11 @@ export class ProfileVault {
       if (!(await this.ready)) fail('STORAGE_WRITE');
       return operation(accepted);
     });
-    this.tail = result.catch(() => {});
+    // The queue must not retain a fulfilled plaintext editing response.
+    this.tail = result.then(
+      () => undefined,
+      () => undefined,
+    );
     return result;
   }
   private check(accepted: number) {
@@ -270,6 +274,24 @@ export class ProfileVault {
     const s = await this.active(e);
     if (s.epoch !== epoch) fail('CONFLICT');
     return { e, s };
+  }
+  /** Dedicated settings-document read. Reading for editing does not consume the
+   * one-shot autofill allowance; save/change/explicit lock revoke the session. */
+  readForEditing(revision: string, epoch: string): Promise<FullProfile> {
+    return this.run(async (accepted) => {
+      const { e, s } = await this.authorized(revision, epoch);
+      const raw = unbase64(s.raw);
+      try {
+        const profile = await open(e, raw);
+        this.check(accepted);
+        if (canonical(await this.envelope()) !== canonical(e)) fail('CONFLICT');
+        await this.authorized(revision, epoch);
+        this.check(accepted);
+        return profile;
+      } finally {
+        raw.fill(0);
+      }
+    });
   }
   update(revision: string, epoch: string, profile: unknown): Promise<string> {
     return this.run(async (accepted) => {
