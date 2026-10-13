@@ -1,58 +1,11 @@
-# Amex Autofill 拡張
+# Amex Autofill拡張
 
-Chrome MV3 / Vanilla TypeScript。暗号化された36項目のプロフィールを登録・編集する設定タブを追加しています。拡張アイコンのコンテキストメニューから「オプション」、または拡張管理の「拡張機能のオプション」で開きます。
+`npm run build:extension`で`dist/extension`を生成し、Chrome/Braveの拡張管理から読み込む。設定画面で36項目を暗号化して登録する。対応申込ページでPopupを開き、必要なら解除し、「自動入力」を本人がクリックする。解除だけでは入力しない。
 
-設定は事業情報 / 個人情報 / カード設定 / セキュリティの4区分。12文字以上のマスターパスワードが必須です。保存・PW変更後はロックされます。PWは復旧できず、忘れた場合は明示確認後に登録情報を初期化します。詳しくは[設定画面の操作・検証・限界](../../docs/PROFILE-SETTINGS.md)。
+通常ビルドの対象は確認済みのUS Amex Business Platinum申込host/pathのみ。個別のDOMが検証できなければその項目は入力しない。本人情報を用いた実Amexへの適合確認は#16で行う。申込送信・同意・CAPTCHA操作は含まない。
 
-既存Popupは7項目の合成fixture用です。暗号化設定とはまだ連携しておらず、実プロフィールを入力しないでください。PopupとAutofillの統合は#13です。以下は既存の模擬フォーム用手順です。
-**このビルドの入力先は `http://127.0.0.1:4173/autofill-fixture` だけ。実Amexの入力確認は未実施。**
+- [設定画面・パスワード・初期化](../../docs/PROFILE-SETTINGS.md)
+- [Popup・進捗・停止・結果・検証](../../docs/POPUP-AUTOFILL.md)
+- [暗号化保管層と失効の限界](../../docs/ENCRYPTED-PROFILE-STORAGE.md)
 
-## 試す
-
-1. `npm ci` と `npm run build:extension` を実行。
-2. `npm run fixture:autofill` でローカル模擬フォームを起動。
-3. Braveの拡張管理画面（Chromeも可）でデベロッパーモードを有効にし、`dist/extension` を「パッケージ化されていない拡張」として読み込む。
-4. 上記ローカルURLを開き、拡張のpopupを開く。
-5. 意味を持たない文字列を入力し「端末に保存」。popupを開き直して保存内容を確認。
-6. 「フォームを検出」で項目ごとの状態を確認し、Fill Nowで空欄に反映。
-7. 「保存情報を全削除」で拡張内の保存値とpopupの入力欄を消す。対象ページの既存値は消さない。
-
-対象はEmail Address、Legal Business Name、Business Name on Card、Company DBA Name、First Name、Last Name、Name on Card。
-入力内容の編集は「端末に保存」で次回へ保存する。Fill Nowはpopupの現在値を使い、自動保存はしない。
-
-## 既存fixture Popupの保存と権限
-
-ユーザーの「一回入力したら使い回せるようにする」という方針により `chrome.storage.local` にversion 1のstrict profileを保存する。
-暗号化なしの端末内保存。sync、サーバー送信、console、研究Observationへの出力はしない。端末・ブラウザprofileへアクセスできる人からの秘匿は保証しない。
-SSN、税ID、DOB、住所、電話、収入、自由な追加項目はprofileスキーマが拒否する。
-保存へのアクセスはTRUSTED_CONTEXTSに制限。拡張権限はstorage/scriptingとloopback hostのみ。
-ページへの注入関数に渡す値は実行中のメモリ上だけで扱い、戻り値には固定field IDとstatusしか含めない。
-
-## 入力契約
-
-- main frameの固定URLだけ。query/hash付きURLや他サイトを拒否。
-- 現在のDOMのid/nameがそれぞれ一意で同じinputを指し、labelが確認済みの文字列と一致すること。
-- input/textのみ。未知label、role付きcustom control、非表示、disabled（親fieldsetも含む）、readonly、inert、既存値はスキップ。
-- 空値は入力しない。実測上限と現在のmaxlength/minlengthに従い、切り捨て・正規化はしない。未知pattern付きはスキップ。
-- 検出したtab/document IDにFill Nowを限定。再読込・別tabへ変わったら再検出が必要。
-- 入力直前にも各項目を検証。native setter + input/changeを使い、同期イベントでDOMが置換・変更された場合はchangedと表示する。
-- click、focus、blur、submit、accept、navigationは実行しない。入力イベントを受けたページ自身の通信・動作を阻止する機能ではない。
-- framework固有の非同期更新、全項目の原子的更新やrollbackは未対応。実Amexへの適合性は未確認。
-
-## 検証
-
-設定タブは`npm run test:settings`、保管層は`npm run test:vault`。以下は既存fixtureの検証です。
-
-`npm run check`、`npm run test:extension`。CIは`PROBE_TEST_BROWSER=chromium`を指定。
-実MV3のpopup→保存→再読込→検出→isolated world入力→結果表示→削除を検証する。
-外部通信を拒否し、loopback模擬フォームと当該拡張のリソースだけを許可。値は意味を持たないsentinelのみ。
-ブラウザprofileはテストの一時領域で破棄し、スクリーンショット・trace・HARを作らない。
-
-参考: [Chrome scripting API](https://developer.chrome.com/docs/extensions/reference/api/scripting)、[Playwright extension testing](https://playwright.dev/docs/chrome-extensions)。
-
-## 次の境界
-
-実Amex対応は別途、本人の正しい情報・実際の申込意思を確認して進める。現在のmanifest/URL guardに実Amexの許可はない。
-住所combobox、select、checkbox、税ID/SSN/DOB/収入は今回対象外。
-Offer Labの高額オファー判定機能は未実装。用途分類・条件比較には別の観測契約が必要で、通信の時刻一致だけで判定を推測しない。
-Playwrightのmain frame DOM自動取得問題は未解決。Chrome DevTools MCPでのDOM取得検証は未実施で、過去のComputer Use経由のDevTools確認とは区別する。実AmexでのAutofill検証を含め、PR #6マージ後の別スレッドへ引き継ぐ。
+合成テストは `PROBE_TEST_BROWSER=chromium npm run test:extension` と `npm run test:autofill`。前者が生成するfixture用ビルドにはloopback権限があり、通常配布用とは異なる。通常ビルドは再度 `npm run build:extension` で生成する。旧7項目の平文保存キーとDMGには触れず、自動移行はしない。

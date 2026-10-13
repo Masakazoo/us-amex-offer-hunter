@@ -1,3 +1,4 @@
+import { isExtensionUI } from '../extension-ui.js';
 import { z } from 'zod';
 import { VaultError, fail, type ErrorCode } from './crypto.js';
 import { ProfileVault, type Status } from './service.js';
@@ -70,15 +71,10 @@ export async function handleVaultMessage(
   extensionId: string,
 ): Promise<VaultReply> {
   try {
-    const popup = `chrome-extension://${extensionId}/popup.html`;
     const settings = `chrome-extension://${extensionId}/settings.html`;
     if (
-      sender.id !== extensionId ||
-      sender.origin !== `chrome-extension://${extensionId}` ||
-      !sender.documentId ||
-      sender.tab?.incognito ||
-      (sender.frameId !== undefined && sender.frameId !== 0) ||
-      (sender.url !== popup && sender.url !== settings)
+      !isExtensionUI(sender, extensionId, 'popup') &&
+      !isExtensionUI(sender, extensionId, 'settings')
     )
       fail('UNAUTHORIZED');
     const parsed = commands.safeParse(input);

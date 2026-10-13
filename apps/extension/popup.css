@@ -1,68 +1,116 @@
 :root {
   font:
-    14px/1.5 system-ui,
+    14px/1.6 -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
     sans-serif;
-  color: #17243b;
-  background: #f6f8fc;
+  color: #233d5d;
+  background: #f3f6fb;
+}
+* {
+  box-sizing: border-box;
 }
 body {
-  width: 360px;
   margin: 0;
-  padding: 20px;
+  width: 370px;
 }
-h1 {
-  font-size: 24px;
-  margin: 0 0 12px;
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 22px;
+  background: white;
+  border-bottom: 1px solid #dbe4ef;
+}
+header strong {
+  font-size: 18px;
 }
 small {
-  font-size: 13px;
-  font-weight: normal;
-}
-label {
   display: block;
-  margin: 10px 0;
-  font-weight: 600;
+  color: #61758e;
 }
-input {
-  box-sizing: border-box;
-  width: 100%;
-  padding: 8px;
-  border: 1px solid #7d8ca5;
-  border-radius: 5px;
-  font: inherit;
+main {
+  padding: 20px 22px;
 }
-.buttons {
-  display: flex;
-  gap: 8px;
-  margin-top: 14px;
+h1 {
+  font-size: 22px;
+  margin: 8px 0;
+}
+h2 {
+  font-size: 16px;
+}
+p {
+  margin: 12px 0;
 }
 button {
-  padding: 9px 12px;
-  border: 1px solid #536580;
-  border-radius: 5px;
-  background: white;
-  color: #17243b;
+  font: inherit;
   cursor: pointer;
+  border: 1px solid #b8cce5;
+  border-radius: 8px;
+  background: white;
+  color: #254b79;
+  padding: 9px 14px;
 }
-#fill {
-  background: #174da5;
-  color: white;
-}
-button:disabled {
-  opacity: 0.5;
+button:disabled,
+input:disabled {
   cursor: default;
+  opacity: 0.5;
 }
-:focus-visible {
-  outline: 3px solid #be7000;
-  outline-offset: 2px;
+#fill,
+#unlock,
+#register {
+  width: 100%;
+  background: #195bcc;
+  color: white;
+  border: 0;
+}
+input[type='password'] {
+  font: inherit;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #adc3df;
+  border-radius: 7px;
+  margin: 6px 0;
+}
+.keep {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin-top: 10px;
 }
 .note {
-  color: #46546b;
+  font-size: 11px;
+  color: #596e89;
+  line-height: 1.7;
+}
+.actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+#target-state {
   font-size: 12px;
+  color: #566f8e;
 }
 #message {
-  min-height: 42px;
+  font-size: 13px;
+}
+#message[data-error='true'] {
+  color: #a32839;
 }
 #results {
-  padding-left: 18px;
+  font-size: 12px;
+  padding-left: 20px;
+}
+#outcome {
+  border-top: 1px solid #dbe4ef;
+  margin-top: 18px;
+  padding-top: 8px;
+}
+[hidden] {
+  display: none !important;
+}
+:focus-visible {
+  outline: 3px solid #82ade7;
+  outline-offset: 2px;
 }

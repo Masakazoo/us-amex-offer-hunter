@@ -1,11 +1,11 @@
 # US Amex Application Support / Offer Lab
 
-**プロフィール設定を追加（#12）**: 拡張の「オプション」から、日英併記の36項目を暗号化して登録・編集できます。パスワードは必須です。既存の合成fixture用Popupとの統合は#13で行います。[設定画面の操作・検証](docs/PROFILE-SETTINGS.md)。
+**暗号化プロフィールとPopup連携（#11–#13）**: 36項目を設定で暗号化保存し、対応ページを自動確認して本人クリックで入力します。[Popupの操作・検証](docs/POPUP-AUTOFILL.md)、[設定画面](docs/PROFILE-SETTINGS.md)。
 
 US American Express申込を人間が管理しながら支援するための調査プロジェクトです。
-現在は **Phase 2B（ローカルAutofill MVP）**。Chrome Manifest V3拡張で、7項目のプロフィール保存・再利用・削除と「フォームを検出」→「Fill Now」を実装し、ローカル模擬フォームで動作確認済みです。実Amexサイトへの入力は未対応・未検証で、Playwrightのmain frame DOM自動取得問題も未解決です。
+Chrome Manifest V3拡張の暗号化保管・設定・Popup・全項目入力を合成フォームで検証しています。本人情報による実Amex適合確認は#16です。
 
-- **Application Autofill（ローカルMVP）**: 保存した申込情報を使い、Chrome拡張の `Fill Now` で現在DOMにある項目だけを意味的に検出して入力する。位置・順番や単一selectorに依存しない。
+- **Application Autofill**: URL/文書/DOMを検査し、明示操作で空欄へ入力、既存値は保持します。
 - **Offer Lab**: public/referral/targeted、ログインや通常/プライベート環境などの条件と表示オファーを比較する研究基盤。安全なObservationスキーマと観測ハーネスを実装済み。高額オファー判定機能は未実装。
 - **application-probe（今回）**: 人間によるfocus/input/change/blurとHTTP通信の開始を時系列で記録し、安全なDOMメタデータとレポートを作る。
 
@@ -25,9 +25,7 @@ macOSではBraveを既定で起動します。他のOSのBraveは `PROBE_EXECUTA
 
 ## Autofillを試す
 
-`npm run build:extension` → `npm run fixture:autofill`。
-Brave / Chromeで `dist/extension` を読み込み、模擬フォーム上で拡張の検出・Fill Nowを使います。
-7項目のprofileは端末内に保存でき、次回も再利用できます。詳細は[拡張の手順・保存仕様](apps/extension/README.md)。
+`npm run build:extension`で通常拡張を生成します。合成検証は`PROBE_TEST_BROWSER=chromium npm run test:extension`。詳細は[拡張の手順](apps/extension/README.md)。
 
 ## 実フォーム調査の開始
 
@@ -65,7 +63,7 @@ PROBE_TEST_BROWSER=chromium npm run test:browser
 PROBE_TEST_BROWSER=chromium npm run test:extension
 ```
 
-probeのブラウザテストは `fixture.invalid` をPlaywright内で応答し、それ以外をabortします。拡張テストはloopback模擬フォームと当該拡張のリソースだけを許可し、保存・再利用・削除・検出・Fill Nowを実MV3で検証します。CIから実Amexにはアクセスしません。`PRIVATE_SENTINEL` は除外確認用の非PII文字列で、外部へ送信されません。
+probeのブラウザテストは `fixture.invalid` をPlaywright内で応答し、それ以外をabortします。拡張テストはloopback模擬フォームと当該拡張のリソースだけを許可し、暗号化保存・解除・明示入力・中断・再表示を実MV3で検証します。CIから実Amexにはアクセスしません。`PRIVATE_SENTINEL` は除外確認用の非PII文字列で、外部へ送信されません。
 
 ## 構成・資料
 
