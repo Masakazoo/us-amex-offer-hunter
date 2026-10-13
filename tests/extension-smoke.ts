@@ -430,6 +430,70 @@ try {
       'PASS normal Chrome: native action popup explicit fill, close during fill, reopen result',
     );
   }
+  // Exercise the actual Worker -> isolated-world boundary with an encrypted draft.
+  if (popup.isClosed()) await openPopup();
+  const draft = {
+    ...fixture,
+    email: 'UNFINISHED@',
+    businessPhoneNumber: '123',
+    dateOfBirth: '01-',
+    lastName: '',
+  };
+  const updatedDraft = await settings.evaluate(
+    async ({ draft, pw }) => {
+      const channel = 'profile-vault-v1';
+      const unlocked = await chrome.runtime.sendMessage({
+        channel,
+        op: 'unlock',
+        password: pw,
+        keep: true,
+      });
+      if (!unlocked.ok) return unlocked;
+      const { status } = await chrome.runtime.sendMessage({
+        channel,
+        op: 'status',
+      });
+      return chrome.runtime.sendMessage({
+        channel,
+        op: 'update',
+        profile: draft,
+        revision: status.revision,
+        epoch: status.epoch,
+      });
+    },
+    { draft, pw },
+  );
+  assert.equal(updatedDraft.ok, true);
+  await vaultState('ロック中');
+  await resetPage();
+  // The preceding settings unlock also participates in the shared rate limit.
+  await popup.waitForTimeout(1100);
+  await unlock();
+  await popup.locator('#fill').click();
+  await completed();
+  const draftResults = await popup.evaluate(async () => {
+    const { view } = await chrome.runtime.sendMessage({
+      channel: 'autofill-v1',
+      op: 'view',
+    });
+    return view.run.fields as { field: string; status: string }[];
+  });
+  for (const key of ['email', 'businessPhoneNumber', 'dateOfBirth']) {
+    assert.equal(await target.locator(`#${key}`).inputValue(), '');
+    assert.equal(
+      draftResults.find((f) => f.field === key)?.status,
+      'invalid-value',
+    );
+  }
+  assert.equal(await target.locator('#lastName').inputValue(), '');
+  assert.equal(
+    draftResults.find((f) => f.field === 'lastName')?.status,
+    'no-value',
+  );
+  assert.equal(await target.locator('#firstName').inputValue(), 'SENTINEL');
+  console.log(
+    'PASS draft: encrypted partial update, Worker filtering, complete fields filled, unfinished fields excluded',
+  );
   worker =
     context.serviceWorkers().find((w) => w.url().endsWith('/worker.js')) ??
     (await context.waitForEvent('serviceworker'));

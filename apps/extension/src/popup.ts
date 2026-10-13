@@ -26,7 +26,7 @@ const statusNames: Record<string, string> = {
   changed: '画面が変更されました',
   'validation-error': '入力エラーを確認',
   failed: '入力失敗',
-  'address-review': '住所候補を確認',
+  'address-review': '住所を確認',
 };
 const messages: Record<string, string> = {
   AUTH_OR_CORRUPT: 'パスワードが違うか、登録情報を開けません。',

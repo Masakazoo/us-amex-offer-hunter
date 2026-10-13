@@ -2,10 +2,54 @@ import { describe, it, expect } from 'vitest';
 import {
   fullProfileSchema,
   profileIssues,
+  prepareAutofillProfile,
+  type FullProfile,
 } from '../apps/extension/src/full-profile.js';
 import { fullSentinelProfile } from './vault-fixture.js';
 
 describe('full encrypted profile', () => {
+  it('allows encrypted drafts but removes unfinished and inconsistent values before injection', () => {
+    const draft: FullProfile = {
+      ...fullSentinelProfile(),
+      email: 'draft@',
+      businessPhoneNumber: '123',
+      dateOfBirth: '01-',
+      firstName: '',
+      industryType: 'Government Entity',
+      zipCode: '12',
+    };
+    expect(fullProfileSchema.safeParse(draft).success).toBe(true);
+    const prepared = prepareAutofillProfile(draft);
+    expect(prepared.invalidFields.sort()).toEqual([
+      'businessPhoneNumber',
+      'dateOfBirth',
+      'email',
+      'industryType',
+      'zipCode',
+    ]);
+    for (const key of prepared.invalidFields)
+      expect(prepared.values).not.toHaveProperty(key);
+    expect(prepared.values.legalBusinessName).toBe(draft.legalBusinessName);
+    expect(prepared.values.firstName).toBe('');
+    expect(draft.email).toBe('draft@');
+  });
+  it('excludes out-of-range employee counts while retaining them in encrypted drafts', () => {
+    for (const value of ['0', '000']) {
+      const draft = { ...fullSentinelProfile(), numberOfEmployees: value };
+      expect(fullProfileSchema.safeParse(draft).success).toBe(true);
+      expect(prepareAutofillProfile(draft).invalidFields).toContain(
+        'numberOfEmployees',
+      );
+    }
+    for (const value of ['1', '999']) {
+      expect(
+        prepareAutofillProfile({
+          ...fullSentinelProfile(),
+          numberOfEmployees: value,
+        }).invalidFields,
+      ).not.toContain('numberOfEmployees');
+    }
+  });
   it('roundtrips reviewed fields and explicitly chosen options', () => {
     const p = fullSentinelProfile();
     const parsed = fullProfileSchema.parse(p);

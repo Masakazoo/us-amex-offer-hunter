@@ -81,6 +81,28 @@ async function token(vault: ProfileVault): Promise<OperationToken> {
 const verify = async () => true;
 afterEach(() => vi.restoreAllMocks());
 describe('encrypted profile crypto', () => {
+  it('roundtrips an incomplete draft without weakening structural validation', async () => {
+    const draft = Object.fromEntries(
+      Object.keys(fullSentinelProfile()).map((key) => [key, '']),
+    );
+    draft.legalBusinessName = 'DRAFT-SENTINEL';
+    draft.businessPhoneNumber = '123';
+    draft.dateOfBirth = '01-';
+    const envelope = await seal(draft, PASSWORD);
+    const raw = await derive(PASSWORD, envelope);
+    try {
+      expect(await open(envelope, raw)).toEqual(draft);
+    } finally {
+      raw.fill(0);
+    }
+    expect(JSON.stringify(envelope)).not.toContain('DRAFT-SENTINEL');
+    await expect(seal({ ...draft, unknown: 'x' }, PASSWORD)).rejects.toThrow(
+      'INVALID_INPUT',
+    );
+    await expect(
+      seal({ ...draft, businessPhoneNumber: 'x'.repeat(21) }, PASSWORD),
+    ).rejects.toThrow('INVALID_INPUT');
+  });
   it('roundtrips all fields; rejects wrong passwords, ciphertext and authenticated metadata changes', async () => {
     const p = fullSentinelProfile();
     const e = await seal(p, PASSWORD);

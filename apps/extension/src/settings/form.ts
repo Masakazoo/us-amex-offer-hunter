@@ -107,7 +107,7 @@ export function buildFields(container: HTMLElement): Map<string, FieldView> {
       label.htmlFor = `field-${spec.key}`;
       const requirement = make(
         'span',
-        spec.optional ? '任意' : '必須',
+        spec.optional ? '任意' : '申込時に必要',
         `requirement ${spec.optional ? '' : 'required'}`,
       );
       if (spec.kind !== 'checkbox') label.append(requirement);

@@ -1,7 +1,6 @@
 import {
   fullFieldSpecs,
   fullProfileSchema,
-  profileIssues,
   type FullProfile,
   type FullFieldSpec,
 } from '../full-profile.js';
@@ -40,15 +39,8 @@ export const sections: {
     description: 'パスワードと登録データを管理します。',
   },
 ];
-export const unverifiedLabels = new Set([
-  'cardDesign',
-  'cardMaterial',
-  'businessCity',
-  'businessState',
-  'city',
-  'state',
-]);
-export const sensitiveFields = new Set(['ssn', 'federalTaxId', 'dateOfBirth']);
+export const unverifiedLabels = new Set<string>();
+export const sensitiveFields = new Set(['ssn', 'federalTaxId']);
 // English strings are the stored values. Japanese strings are help text only.
 const optionHelp: Record<string, string> = {
   AL: 'アラバマ',
@@ -169,7 +161,7 @@ export function hint(spec: FullFieldSpec): string {
   if (spec.format === 'date') return 'MM-DD-YYYY（月2桁・日2桁・西暦4桁）';
   if (spec.format === 'money')
     return 'USD・半角数字、小数は2桁まで（カンマなし）';
-  if (spec.format === 'digits') return '半角数字・3桁以内';
+  if (spec.format === 'digits') return '半角数字・1〜999';
   if (spec.key === 'email') return '例: name@example.com';
   if (spec.key === 'businessState' || spec.key === 'state')
     return '州・準州などの英語略号';
@@ -182,14 +174,13 @@ export type FieldIssue = {
 };
 export function validateProfile(profile: FullProfile): FieldIssue[] {
   const structural = fullProfileSchema.safeParse(profile);
+  // Saving a draft checks its structure, not application readiness.
   const issues: FieldIssue[] = structural.success
-    ? profileIssues(structural.data)
+    ? []
     : structural.error.issues.map((issue) => ({
         field: String(issue.path[0]),
         reason: 'format',
       }));
-  if (profile.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email))
-    issues.push({ field: 'email', reason: 'format' });
   return issues.filter(
     (item, index) => issues.findIndex((i) => i.field === item.field) === index,
   );

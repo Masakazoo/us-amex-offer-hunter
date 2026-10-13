@@ -53,9 +53,14 @@ export async function runFullAutofill(input: {
   if (
     Object.keys(c).some(
       (k) =>
-        !['action', 'values', 'source', 'expectedUrl', 'operationId'].includes(
-          k,
-        ),
+        ![
+          'action',
+          'values',
+          'invalidFields',
+          'source',
+          'expectedUrl',
+          'operationId',
+        ].includes(k),
     ) ||
     !['inspect', 'fill'].includes(String(c.action))
   )
@@ -80,6 +85,17 @@ export async function runFullAutofill(input: {
       ([key, value]) =>
         !specs.some((s) => s.key === key) || typeof value !== 'string',
     )
+  )
+    return output.make('invalid-command');
+  const invalidFields = c.invalidFields ?? [];
+  if (
+    !Array.isArray(invalidFields) ||
+    invalidFields.length > specs.length ||
+    invalidFields.some(
+      (key) => typeof key !== 'string' || !specs.some((s) => s.key === key),
+    ) ||
+    new Set(invalidFields).size !== invalidFields.length ||
+    (c.action === 'inspect' && invalidFields.length)
   )
     return output.make('invalid-command');
   const gate = async () => {
@@ -126,6 +142,22 @@ export async function runFullAutofill(input: {
         return /^\d+(?:\.\d+)?$/.test(n) ? String(Number(n)) : value;
       }
       if (spec.format === 'date') return value.replace(/\//g, '-');
+      if (
+        [
+          'businessNameOnCard',
+          'nameOnCard',
+          'businessAddressLine1',
+          'businessAddressLine2',
+          'businessCity',
+          'addressLine1',
+          'addressLine2',
+          'city',
+        ].includes(spec.key)
+      )
+        return value
+          .replace(/[a-z]/g, (letter) => letter.toUpperCase())
+          .trim()
+          .replace(/\s+/g, ' ');
       return value;
     },
     normalizeAddress(value: string) {
@@ -153,6 +185,9 @@ export async function runFullAutofill(input: {
     const same = document.querySelectorAll(`#${spec.key}`);
     const names = document.querySelectorAll(`[name="${spec.key}"]`);
     const labels = [...(el.labels ?? [])];
+    const texts = labels
+      .map((l) => helpers.label(l.textContent ?? ''))
+      .filter(Boolean);
     return (
       location.href === start &&
       same.length === 1 &&
@@ -163,8 +198,8 @@ export async function runFullAutofill(input: {
       (spec.combobox
         ? el.getAttribute('role') === 'combobox'
         : !el.getAttribute('role')) &&
-      labels.length > 0 &&
-      labels.every((l) => helpers.label(l.textContent ?? '') === spec.label) &&
+      texts.length > 0 &&
+      texts.every((text) => text === spec.label) &&
       (spec.kind === 'checkbox'
         ? labels.some((l) => helpers.visible(l))
         : helpers.visible(el)) &&
@@ -266,13 +301,36 @@ export async function runFullAutofill(input: {
     // Use actual live branching, not assumptions about a previous selected value.
     if (
       (key === 'federalTaxId' && helpers.sole()) ||
-      (key === 'companyDBAName' && helpers.checked('doingBusinessAs')) ||
-      (['addressLine1', 'addressLine2', 'zipCode', 'city', 'state'].includes(
-        key,
-      ) &&
-        helpers.checked('sameAddress'))
+      (key === 'companyDBAName' && helpers.checked('doingBusinessAs'))
     ) {
       result.status = 'conditional';
+      continue;
+    }
+    if (
+      ['addressLine1', 'addressLine2', 'zipCode', 'city', 'state'].includes(
+        key,
+      ) &&
+      helpers.checked('sameAddress')
+    ) {
+      // Same-address does not guarantee that the site completed the home fields.
+      // Never copy the business address; flag exposed controls for manual review.
+      const controls = [
+        ...document.querySelectorAll(`#${key},[name="${key}"]`),
+      ];
+      result.status = controls.some(
+        (el) =>
+          (el instanceof HTMLInputElement || el instanceof HTMLSelectElement) &&
+          helpers.visible(el) &&
+          ((!el.matches(':disabled') &&
+            el.getAttribute('aria-disabled') !== 'true') ||
+            (!spec.optional && !el.value.trim())),
+      )
+        ? 'address-review'
+        : 'conditional';
+      continue;
+    }
+    if (invalidFields.includes(key)) {
+      result.status = 'invalid-value';
       continue;
     }
     if (spec.kind === 'radio') {
@@ -500,7 +558,14 @@ export async function runFullAutofill(input: {
         continue;
       }
       if (el.value !== '') {
-        result.status = el.value === next ? 'matched' : 'existing-value';
+        result.status = (
+          isSelect
+            ? el.value === next
+            : helpers.normalized(el.value, spec) ===
+              helpers.normalized(value, spec)
+        )
+          ? 'matched'
+          : 'existing-value';
         continue;
       }
       el.focus();
@@ -509,7 +574,14 @@ export async function runFullAutofill(input: {
         continue;
       }
       if (el.value !== '') {
-        result.status = el.value === next ? 'matched' : 'existing-value';
+        result.status = (
+          isSelect
+            ? el.value === next
+            : helpers.normalized(el.value, spec) ===
+              helpers.normalized(value, spec)
+        )
+          ? 'matched'
+          : 'existing-value';
         continue;
       }
       if (isSelect) {

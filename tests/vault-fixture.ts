@@ -15,14 +15,17 @@ export function fullSentinelProfile(): FullProfile {
           ? '0000000000'
           : s.format === 'tax' || s.format === 'ssn'
             ? '000000000'
-            : s.format === 'money' || s.format === 'digits'
-              ? '0'
-              : s.format === 'date'
-                ? '01-01-1000'
-                : s.key === 'middleName'
-                  ? 'X'
-                  : 'SENTINEL');
+            : s.format === 'digits'
+              ? '1'
+              : s.format === 'money'
+                ? '0'
+                : s.format === 'date'
+                  ? '01-01-1000'
+                  : s.key === 'middleName'
+                    ? 'X'
+                    : 'SENTINEL');
   }
+  data.email = 'synthetic@example.invalid';
   data.companyStructure = 'Sole Proprietorship';
   data.doingBusinessAs = 'yes';
   data.sameAddress = 'yes';

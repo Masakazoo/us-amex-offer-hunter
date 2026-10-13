@@ -217,7 +217,7 @@ try {
   await status(page, '未登録');
   await page.locator('#profile-form:not([hidden])').waitFor();
   assert.equal(await page.locator('.field').count(), 36);
-  assert.equal(await page.locator('.unverified').count(), 6);
+  assert.equal(await page.locator('.unverified').count(), 0);
   for (const spec of fullFieldSpecs)
     assert.ok(
       (
@@ -238,8 +238,11 @@ try {
   await screenshot(page, '01-mobile');
   await page.setViewportSize({ width: 1360, height: 950 });
   await page.locator('#save-profile').click();
-  await page.locator('#error-summary:not([hidden])').waitFor();
-  assert.ok((await page.locator('#error-summary button').count()) > 0);
+  await page
+    .getByText('パスワードは12文字以上、1024文字以内で入力してください。', {
+      exact: true,
+    })
+    .waitFor();
   await fillAll(page);
   await go(page, 'business');
   assert.equal(await field(page, 'companyDBAName').isVisible(), false);
@@ -266,10 +269,7 @@ try {
   await field(page, 'sameAddress').check();
   await conditionsRestored(page);
   assert.equal(await field(page, 'ssn').getAttribute('type'), 'password');
-  assert.equal(
-    await field(page, 'dateOfBirth').getAttribute('type'),
-    'password',
-  );
+  assert.equal(await field(page, 'dateOfBirth').getAttribute('type'), 'text');
   await page.locator('[data-for="field-ssn"]').click();
   assert.equal(await field(page, 'ssn').getAttribute('type'), 'text');
   await page.locator('[data-for="field-ssn"]').click();
@@ -292,7 +292,10 @@ try {
   await page.locator('#confirm-password').fill(password);
   await whileBusy(page, 'create', () => page.locator('#save-profile').click());
   await page
-    .getByText('暗号化して保存しました。ロックされています。', { exact: true })
+    .getByText(
+      '暗号化して保存しました。ロックされています。このタブを閉じて構いません。',
+      { exact: true },
+    )
     .waitFor();
   await status(page, 'ロック中');
   for (const key of ['new-password', 'confirm-password', 'unlock-password'])
@@ -515,6 +518,37 @@ try {
   );
   await page.reload();
   await page.locator('#unavailable-panel:not([hidden])').waitFor();
+  await go(page, 'security');
+  await page.locator('#reset-profile').click();
+  await page.locator('#reset-acknowledge').check();
+  await page.locator('#confirm-reset').click();
+  await status(page, '未登録');
+  // Partial create and update survive closing/reopening the settings tab.
+  await go(page, 'business');
+  await field(page, 'legalBusinessName').fill('DRAFT-SENTINEL');
+  await field(page, 'businessPhoneNumber').fill('123');
+  await go(page, 'security');
+  await page.locator('#new-password').fill(password);
+  await page.locator('#confirm-password').fill(password);
+  await page.locator('#save-profile').click();
+  await status(page, 'ロック中');
+  await page.reload();
+  await unlock(page);
+  await go(page, 'business');
+  assert.equal(
+    await field(page, 'legalBusinessName').inputValue(),
+    'DRAFT-SENTINEL',
+  );
+  assert.equal(await field(page, 'businessPhoneNumber').inputValue(), '123');
+  await go(page, 'personal');
+  assert.equal(await field(page, 'firstName').inputValue(), '');
+  await field(page, 'dateOfBirth').fill('01-');
+  await page.locator('#save-profile').click();
+  await status(page, 'ロック中');
+  await page.reload();
+  await unlock(page);
+  await go(page, 'personal');
+  assert.equal(await field(page, 'dateOfBirth').inputValue(), '01-');
   await go(page, 'security');
   await page.locator('#reset-profile').click();
   await page.locator('#reset-acknowledge').check();
