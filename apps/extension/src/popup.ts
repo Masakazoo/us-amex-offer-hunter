@@ -1,165 +1,215 @@
-import {
-  fieldSpecs,
-  profileSchema,
-  storedProfileSchema,
-  profileKey,
-} from './profile.js';
-import { runAutofill } from './autofill.js';
-
-const form = document.querySelector<HTMLFormElement>('#profile')!;
-const message = document.querySelector<HTMLElement>('#message')!;
-const results = document.querySelector<HTMLElement>('#results')!;
-const fill = document.querySelector<HTMLButtonElement>('#fill')!;
-const buttons = Array.from(
-  document.querySelectorAll<HTMLButtonElement>('button'),
-);
-const inputs = new Map<string, HTMLInputElement>();
-let target: { tabId: number; documentId: string } | undefined;
-let busy = false;
-
-for (const [key, label, max] of fieldSpecs) {
-  const wrapper = document.createElement('label');
-  wrapper.textContent = label;
-  const input = document.createElement('input');
-  input.name = key;
-  input.type = 'text';
-  input.maxLength = max;
-  input.autocomplete = 'off';
-  input.spellcheck = false;
-  wrapper.append(input);
-  form.append(wrapper);
-  inputs.set(key, input);
-}
-form.addEventListener('submit', (event) => event.preventDefault());
-
-const statusText: Record<string, string> = {
-  ready: '入力可能',
+import type { View } from './autofill-controller.js';
+import { labels } from './settings/fields.js';
+const byId = <T extends HTMLElement = HTMLElement>(id: string) =>
+  document.getElementById(id) as T;
+const input = (id: string) => byId<HTMLInputElement>(id);
+const button = (id: string) => byId<HTMLButtonElement>(id);
+let view: View | null = null;
+let generation = 0;
+let pending = false,
+  refreshing = false,
+  alive = true,
+  composing = false;
+const statusNames: Record<string, string> = {
   filled: '入力済み',
-  missing: '見つかりません',
-  ambiguous: '候補が複数',
-  mismatch: '属性が一致しません',
+  matched: '一致済み',
+  'existing-value': '既存値を保持・要確認',
+  conditional: '条件により不要',
+  'not-present': '未表示',
+  missing: '未表示',
+  ready: '未処理',
+  'no-value': '登録値なし',
+  ambiguous: '候補が複数・要確認',
+  mismatch: '形式が不一致',
   unavailable: '非表示・無効',
-  'existing-value': '既存値を保持',
-  'no-value': '指定なし',
-  'invalid-value': '入力条件に不適合',
+  'invalid-value': '登録値の形式を確認',
   changed: '画面が変更されました',
-  failed: '失敗',
+  'validation-error': '入力エラーを確認',
+  failed: '入力失敗',
+  'address-review': '住所候補を確認',
 };
-function showResult(result: ReturnType<typeof runAutofill> | undefined) {
-  results.replaceChildren();
-  if (!result || result.state !== 'ok') throw new Error('Blocked');
-  for (const field of result.fields) {
-    const label = fieldSpecs.find((spec) => spec[0] === field.field)?.[1];
-    if (!label || !statusText[field.status]) throw new Error('Invalid result');
-    const li = document.createElement('li');
-    li.textContent = `${label}: ${statusText[field.status]}`;
-    results.append(li);
+const messages: Record<string, string> = {
+  AUTH_OR_CORRUPT: 'パスワードが違うか、登録情報を開けません。',
+  RATE_LIMITED: '少し待ってから再入力してください。',
+  LOCKED: 'ロックされています。解除してから再実行してください。',
+  NOT_REGISTERED: 'プロフィールを登録してください。',
+  CONFLICT: '状態が変わりました。確認後に再実行してください。',
+  CANCELLED: '対象ページまたは解除状態が変わりました。',
+  STORAGE_WRITE: '状態を保存できません。拡張を再読み込みして確認してください。',
+  UNSUPPORTED_VERSION: 'この登録情報は開けません。設定画面で確認してください。',
+};
+function notice(text: string, error = false) {
+  byId('message').textContent = text;
+  byId('message').dataset.error = String(error);
+}
+async function request(op: Record<string, unknown>, channel = 'autofill-v1') {
+  const reply = await chrome.runtime.sendMessage({ channel, ...op });
+  if (!reply?.ok)
+    throw new Error(
+      messages[reply?.error as string] ??
+        '状態を確認できません。対象ページと設定を確認してください。',
+    );
+  return reply;
+}
+function render() {
+  const busy = pending || !!view?.busy,
+    status = view?.status,
+    target = !!view?.target;
+  byId('target-state').textContent = target
+    ? '対応する申込フォームを検出しました'
+    : '対応するAmex申込ページで使用してください';
+  byId('vault-state').textContent = view?.unlocking
+    ? '解除中…'
+    : view?.busy
+      ? '入力・選択・検証中…'
+      : !status
+        ? '確認中'
+        : !status.registered
+          ? '未登録'
+          : status.unlocked
+            ? '解除済み'
+            : 'ロック中';
+  byId('register').hidden = !status || status.registered;
+  byId('unlock-form').hidden =
+    !target || !status?.registered || status.unlocked || !!view?.busy;
+  button('fill').hidden = !target || !status?.unlocked || !!view?.busy;
+  button('fill').textContent = view?.run ? '再実行' : '自動入力';
+  button('lock').hidden = !status?.unlocked && !view?.busy;
+  button('cancel').hidden = !view?.busy || !!view.unlocking;
+  for (const node of document.querySelectorAll<
+    HTMLInputElement | HTMLButtonElement
+  >('input,button'))
+    node.disabled = busy;
+  // A running job must remain stoppable from a reopened popup.
+  button('cancel').disabled = pending;
+  button('lock').disabled = pending;
+  button('settings').disabled = pending;
+  const run = view?.run;
+  byId('outcome').hidden = !run;
+  if (run) {
+    byId('phase').textContent = {
+      running: '入力・検証中',
+      completed: '処理が完了しました',
+      cancelled: '入力を停止しました',
+      interrupted: '処理が中断されました。再検証して再実行してください。',
+      failed: '処理できませんでした。解除状態とページを確認してください。',
+      uncertain:
+        '入力結果を保存できませんでした。ページの内容を確認してください。',
+    }[run.phase];
+    const count = (codes: string[]) =>
+      run.fields.filter((f) => codes.includes(f.status)).length;
+    byId('summary').textContent =
+      `入力済み ${count(['filled'])} / 一致済み ${count(['matched'])} / 条件により不要 ${count(['conditional'])} / 未表示 ${count(['missing', 'not-present'])} / 要確認 ${count(['existing-value', 'address-review', 'ambiguous', 'no-value'])} / 失敗 ${count(['mismatch', 'unavailable', 'invalid-value', 'changed', 'validation-error', 'failed'])}`;
+    byId('results').replaceChildren(
+      ...run.fields.map((f) => {
+        const li = document.createElement('li');
+        li.textContent = `${labels.get(f.field) ?? f.field}: ${statusNames[f.status]}`;
+        return li;
+      }),
+    );
+  } else {
+    byId('results').replaceChildren();
+    byId('phase').textContent = '';
+    byId('summary').textContent = '';
   }
 }
-async function activeTab() {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (
-    tab?.id === undefined ||
-    tab.url !== 'http://127.0.0.1:4173/autofill-fixture'
-  )
-    throw new Error('Blocked');
-  return tab.id;
+async function refresh() {
+  if (refreshing || !alive || pending) return;
+  refreshing = true;
+  const accepted = generation;
+  try {
+    const reply = await request({ op: 'view' });
+    if (alive && accepted === generation) {
+      view = reply.view as View;
+      render();
+    }
+  } catch (error) {
+    if (alive && accepted === generation) {
+      view = null;
+      render();
+      notice(
+        error instanceof Error ? error.message : '状態を確認できません。',
+        true,
+      );
+    }
+  } finally {
+    refreshing = false;
+  }
 }
-async function action(work: () => Promise<void>) {
-  if (busy) return;
-  busy = true;
-  buttons.forEach((b) => (b.disabled = true));
+async function perform(work: () => Promise<void>) {
+  if (pending) return;
+  pending = true;
+  ++generation;
+  view = null;
+  render();
+  notice('');
   try {
     await work();
-  } catch {
-    target = undefined;
-    results.replaceChildren();
-    message.textContent =
-      '操作できませんでした。模擬フォームと入力内容を確認して、再検出してください。';
+  } catch (error) {
+    if (alive)
+      notice(
+        error instanceof Error ? error.message : '処理結果を確認できません。',
+        true,
+      );
   } finally {
-    busy = false;
-    buttons.forEach((b) => (b.disabled = false));
-    fill.disabled = !target;
+    pending = false;
+    if (alive) {
+      await refresh();
+      render();
+    }
   }
 }
-function values() {
-  return profileSchema.parse(
-    Object.fromEntries(
-      Array.from(inputs, ([key, input]) => [key, input.value]),
-    ),
-  );
-}
-document.querySelector('#save')!.addEventListener(
-  'click',
-  () =>
-    void action(async () => {
-      await chrome.storage.local.set({
-        [profileKey]: { version: 1, values: values() },
-      });
-      message.textContent = 'この端末に保存しました。次回も読み込まれます。';
-    }),
-);
-document.querySelector('#delete')!.addEventListener(
-  'click',
-  () =>
-    void action(async () => {
-      await chrome.storage.local.remove(profileKey);
-      inputs.forEach((input) => (input.value = ''));
-      target = undefined;
-      results.replaceChildren();
-      message.textContent =
-        '保存情報と入力欄を全削除しました。対象ページの既存値は変更しません。';
-    }),
-);
-document.querySelector('#inspect')!.addEventListener(
-  'click',
-  () =>
-    void action(async () => {
-      target = undefined;
-      const tabId = await activeTab();
-      const [injection] = await chrome.scripting.executeScript({
-        target: { tabId, frameIds: [0] },
-        world: 'ISOLATED',
-        func: runAutofill,
-        args: [{ action: 'inspect' }],
-      });
-      showResult(injection?.result);
-      if (!injection?.documentId) throw new Error('Missing document');
-      target = { tabId, documentId: injection.documentId };
-      message.textContent =
-        '検出しました。Fill Nowで入力可能な空欄だけに現在の入力内容を反映します。';
-    }),
-);
-fill.addEventListener(
-  'click',
-  () =>
-    void action(async () => {
-      const selected = target;
-      target = undefined;
-      if (!selected || selected.tabId !== (await activeTab()))
-        throw new Error('Changed tab');
-      const [injection] = await chrome.scripting.executeScript({
-        target: { tabId: selected.tabId, documentIds: [selected.documentId] },
-        world: 'ISOLATED',
-        func: runAutofill,
-        args: [{ action: 'fill', values: values() }],
-      });
-      showResult(injection?.result);
-      message.textContent =
-        '処理が終わりました。項目ごとの結果を確認してください。';
-    }),
-);
-
-void action(async () => {
-  await chrome.storage.local.setAccessLevel({
-    accessLevel: 'TRUSTED_CONTEXTS',
-  });
-  const stored = (await chrome.storage.local.get(profileKey))[profileKey];
-  if (stored !== undefined) {
-    const profile = storedProfileSchema.parse(stored);
-    inputs.forEach((input, key) => {
-      input.value = profile.values[key as keyof typeof profile.values];
-    });
-    message.textContent = 'この端末の保存情報を読み込みました。';
-  }
+button('settings').onclick = () => void chrome.runtime.openOptionsPage();
+button('register').onclick = () => void chrome.runtime.openOptionsPage();
+input('password').addEventListener('compositionstart', () => {
+  composing = true;
 });
+input('password').addEventListener('compositionend', () => {
+  composing = false;
+});
+byId<HTMLFormElement>('unlock-form').onsubmit = (event) => {
+  event.preventDefault();
+  if (pending || composing) return;
+  const password = input('password').value,
+    keep = input('keep').checked;
+  input('password').value = '';
+  if (!password) {
+    notice('パスワードを入力してください。', true);
+    return;
+  }
+  void perform(async () => {
+    await request({ op: 'unlock', password, keep }, 'profile-vault-v1');
+    notice('解除しました。「自動入力」で空欄へ入力します。');
+  });
+};
+button('fill').onclick = () => {
+  if (!view?.target || !view.status?.unlocked || view.busy || pending) return;
+  const selected = view;
+  void perform(async () => {
+    await request({
+      op: 'start',
+      ...selected.target,
+      revision: selected.status!.revision,
+      epoch: selected.status!.epoch,
+      operationId: crypto.randomUUID(),
+    });
+  });
+};
+button('lock').onclick = () =>
+  void perform(async () => {
+    input('password').value = '';
+    await request({ op: 'lock' }, 'profile-vault-v1');
+    notice('ロックしました。');
+  });
+button('cancel').onclick = () =>
+  void perform(async () => {
+    await request({ op: 'cancel' });
+    notice('停止を要求しました。入力済みの内容はページで確認してください。');
+  });
+window.addEventListener('pagehide', () => {
+  alive = false;
+  input('password').value = '';
+  clearInterval(timer);
+});
+const timer = setInterval(() => void refresh(), 500);
+void refresh();

@@ -30,7 +30,7 @@
 
 production Workerのmessageはchannel `profile-vault-v1`とstrict commandのみ。sender ID/origin/document ID/top-frame/incognitoを検査し、query/hashを含まない完全一致の拡張URLだけ許可する。popup.htmlはstatus/unlock/lockのみ、将来のsettings.htmlは登録/更新/PW変更/resetも可能。鍵を返すmessageは存在しない。#12では`readForEditing(revision,epoch)`を追加し、正規の設定タブからの要求だけへプロフィールを返す。popup/content scriptには返さない。読込後も設定タブ側で再照会してから表示する。[設定画面の契約](PROFILE-SETTINGS.md)を参照。
 
-現在のlegacy Popupは合成fixture用の既存7項目UIで、暗号化保管層へまだ接続していない。#12の専用設定タブは暗号化保管層へ接続する。実プロフィールの登録に使用しない。#12/#13で製品フローへ接続する。本PRのテスト用settings.htmlやconsumerは`dist/vault-test`専用で、配布物`dist/extension`には含まれない。
+#12の設定タブと#13の通常Popupが保管層に接続する。Popupはプロフィールを受け取らず、Worker内部consumerから検証した対象文書へ渡す。[Popupの契約](POPUP-AUTOFILL.md)を参照。保管層専用テストconsumerは`dist/vault-test`だけに含まれる。
 
 ## 障害・競合・復旧
 
@@ -57,5 +57,5 @@ Chromeでは起動後120秒以内に拡張管理画面で「デベロッパー�
 
 - `npm run check`: 71 unit tests、lint/typecheck/format成功。暗号/AAD/誤PW/schema、create/update/change/reset、stale revision/epoch、one-shot/replay、lock中断、session前後障害、local set前後/読戻し障害、二重Storage障害の保証限界を検証。
 - `npm run test:vault`: Playwright Chromiumの実MV3で成功。KDF＋解除47ms（単一端末の参考値、最低性能保証なし）。document再作成・Worker強制停止後の保持、同profileブラウザ再起動後の暗号文存続/解除消失、合成consumerの復号、保持OFF、手動lock、PW変更、resetの他key保持、sender役割制限を確認。
-- 本保管層の通常Chrome UI検証・実設定/Popup・実フォーム注入はまだ未実施。#10の通常Chromeでの再読込/無効化/再起動/自然idle実測は[別のPoC証拠](CHROME-VALIDATION.md)として区別する。配布更新、実プロフィール、電源断、全OS/背景設定、DMG移行は#16。
+- 設定/Popupと合成フォームの統合検証は#12/#13を参照。実Amexの本人情報による注入は未検証。#10の通常Chromeでの再読込/無効化/再起動/自然idle実測は[別のPoC証拠](CHROME-VALIDATION.md)として区別する。配布更新、実プロフィール、電源断、全OS/背景設定、DMG移行は#16。
 - CIに`test:vault`を追加。試験は固定の合成marker/無効なゼロ識別子のみ。生成物やブラウザprofile、秘密値をCI artifactへ保存しない。

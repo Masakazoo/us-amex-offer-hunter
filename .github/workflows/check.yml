@@ -20,6 +20,7 @@ jobs:
       - run: npm run test:extension
         env:
           PROBE_TEST_BROWSER: chromium
+      - run: npm run test:autofill
       - run: npm run test:security
         env:
           SECURITY_BROWSER: chromium

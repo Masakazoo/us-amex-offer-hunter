@@ -1,32 +1,57 @@
 <!doctype html>
 <html lang="ja">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Autofill — Local MVP</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Amex Autofill</title>
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
-    <h1>Autofill <small>Local MVP</small></h1>
-    <p>
-      ローカル模擬フォーム専用。テストには意味を持たない文字列を使用してください。
-    </p>
-    <form id="profile" autocomplete="off"></form>
-    <div class="buttons">
-      <button type="button" id="save">端末に保存</button
-      ><button type="button" id="delete">保存情報を全削除</button>
-    </div>
-    <p class="note">
-      保存はこの端末の拡張ストレージ（暗号化なし）。同期・ログ出力は行いません。
-    </p>
-    <div class="buttons">
-      <button type="button" id="inspect">フォームを検出</button
-      ><button type="button" id="fill" disabled>Fill Now</button>
-    </div>
-    <p id="message" role="status" aria-live="polite">
-      入力内容を保存して、模擬フォームを検出してください。
-    </p>
-    <ul id="results" aria-label="項目ごとの結果"></ul>
+    <header>
+      <div><strong>Amex Autofill</strong><small>Business Platinum</small></div>
+      <button id="settings" aria-label="プロフィール設定">設定</button>
+    </header>
+    <main>
+      <p id="target-state">対応ページを確認中…</p>
+      <h1 id="vault-state">確認中</h1>
+      <p id="message" role="status" aria-live="polite"></p>
+      <button id="register" hidden>プロフィールを登録</button>
+      <form id="unlock-form" hidden autocomplete="off">
+        <label for="password">マスターパスワード</label
+        ><input
+          id="password"
+          type="password"
+          maxlength="1024"
+          autocomplete="off"
+        /><label class="keep"
+          ><input
+            id="keep"
+            type="checkbox"
+            checked
+          />Chrome終了までロック解除を保持</label
+        >
+        <p class="note">
+          ウィンドウを閉じても、Chromeがバックグラウンドで動いている間は解除が続く場合があります。確実にロックするには『ロック』を押してください。拡張の再読込・無効化・更新などでも再認証が必要です。
+        </p>
+        <button id="unlock" type="submit">ロック解除</button>
+      </form>
+      <button id="fill" hidden>自動入力</button>
+      <div class="actions">
+        <button id="cancel" hidden>入力を停止</button
+        ><button id="lock" hidden>ロック</button>
+      </div>
+      <section id="outcome" hidden>
+        <h2 id="phase"></h2>
+        <p id="summary"></p>
+        <details>
+          <summary>項目ごとの結果</summary>
+          <ul id="results"></ul>
+        </details>
+      </section>
+      <p class="note">
+        入力済みの内容は停止・ロックしても元に戻りません。入力に伴い申込サイトが通信する場合があります。内容を確認し、申込送信・同意はご自身で操作してください。
+      </p>
+    </main>
     <script type="module" src="popup.js"></script>
   </body>
 </html>
