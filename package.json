@@ -21,7 +21,9 @@
     "test:security": "node --import tsx tools/security-spike/browser.ts",
     "test:vault": "node --import tsx tools/vault-test/browser.ts",
     "test:settings": "npm run build:extension && node --import tsx tests/settings-smoke.ts",
-    "test:autofill": "node --import tsx tests/full-autofill-smoke.ts"
+    "test:autofill": "node --import tsx tests/full-autofill-smoke.ts",
+    "test:package": "node --import tsx tests/extension-package.ts",
+    "test:release": "node --import tsx tests/release-smoke.ts"
   },
   "dependencies": {
     "playwright": "1.63.0",

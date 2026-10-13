@@ -25,7 +25,7 @@ macOSではBraveを既定で起動します。他のOSのBraveは `PROBE_EXECUTA
 
 ## Autofillを試す
 
-`npm run build:extension`で通常拡張を生成します。合成検証は`PROBE_TEST_BROWSER=chromium npm run test:extension`。詳細は[拡張の手順](apps/extension/README.md)。
+`npm run build:extension`で通常拡張を生成します。配布物の監査は`npm run test:package`、再起動・更新・移行の境界は[実機検証と移行手順](docs/RELEASE-AND-MIGRATION.md)を参照。合成検証は`PROBE_TEST_BROWSER=chromium npm run test:extension`。詳細は[拡張の手順](apps/extension/README.md)。
 
 ## 実フォーム調査の開始
 
@@ -69,7 +69,7 @@ probeのブラウザテストは `fixture.invalid` をPlaywright内で応答し�
 
 - `tools/application-probe/`: 手動調査CLI、操作・通信レコーダー、安全なレポート
 - `packages/core/`: URL parser、allow-list投影、DOM候補識別、厳格なschema
-- `apps/extension/`: ロード可能なMV3拡張MVP。7項目の端末内profileとローカル限定Autofill
+- `apps/extension/`: 36項目の暗号化保管・日英設定・Popup・明示Autofillを備えるMV3拡張
 - [REQUIREMENTS](docs/REQUIREMENTS.md): スコープ、MVP、非機能要件
 - [ARCHITECTURE](docs/ARCHITECTURE.md): 構成とデータフロー
 - [RESEARCH](docs/RESEARCH.md): Confirmed / Probable / Hypothesis / Unknownと実機手順
@@ -79,4 +79,4 @@ probeのブラウザテストは `fixture.invalid` をPlaywright内で応答し�
 
 ## 次スレッドへの引継ぎ
 
-Playwrightのmain frame DOM自動取得問題は未解決で、Issue #4は未完了です。Chrome DevTools MCPによるDOM取得検証は未実施です（過去のComputer Use経由のDevTools確認とは別）。実AmexでのAutofill検証と、Offer Labの高額オファー判定機能は今後の作業です。PR #6の最終レビュー・マージではこれらに着手しません。
+Playwrightのmain frame DOM自動取得問題は未解決で、Issue #4は未完了です。Chrome DevTools MCPによるDOM取得検証は未実施です（過去のComputer Use経由のDevTools確認とは別）。実AmexでのAutofill検証と、Offer Labの高額オファー判定機能は今後の作業です。旧DMGや実データの移行・削除は、本人の保全確認と個別承認後に行います。

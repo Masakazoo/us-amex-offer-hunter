@@ -13,6 +13,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
+      - run: npm run test:package
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser
         env:
@@ -26,5 +27,8 @@ jobs:
           SECURITY_BROWSER: chromium
       - run: npm run test:vault
       - run: npm run test:settings
+        env:
+          PROBE_TEST_BROWSER: chromium
+      - run: xvfb-run -a npm run test:release
         env:
           PROBE_TEST_BROWSER: chromium

@@ -27,8 +27,8 @@ const context = await chromium.launchPersistentContext('', {
   args: chromeMode
     ? ['--enable-unsafe-extension-debugging']
     : [
-        `--disable-extensions-except=${resolve('dist/extension')}`,
-        `--load-extension=${resolve('dist/extension')}`,
+        `--disable-extensions-except=${resolve('dist/extension-fixture')}`,
+        `--load-extension=${resolve('dist/extension-fixture')}`,
       ],
 });
 const logs: string[] = [];
@@ -53,7 +53,7 @@ try {
   if (chromeMode) {
     const cdp = await context.browser()!.newBrowserCDPSession();
     await cdp.send('Extensions.loadUnpacked', {
-      path: resolve('dist/extension'),
+      path: resolve('dist/extension-fixture'),
     });
   }
   let worker =
