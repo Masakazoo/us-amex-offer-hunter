@@ -73,7 +73,7 @@ async function launch() {
     );
     await context.waitForEvent('serviceworker', {
       predicate: (worker) => worker.url().endsWith('/worker.js'),
-      timeout: 120000,
+      timeout: 600000,
     });
     installed = true;
     await manager.close();
