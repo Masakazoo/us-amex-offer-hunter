@@ -27,8 +27,8 @@ const context = await chromium.launchPersistentContext('', {
   args: chromeMode
     ? ['--enable-unsafe-extension-debugging']
     : [
-        `--disable-extensions-except=${resolve('dist/extension')}`,
-        `--load-extension=${resolve('dist/extension')}`,
+        `--disable-extensions-except=${resolve('dist/extension-fixture')}`,
+        `--load-extension=${resolve('dist/extension-fixture')}`,
       ],
 });
 const logs: string[] = [];
@@ -53,7 +53,7 @@ try {
   if (chromeMode) {
     const cdp = await context.browser()!.newBrowserCDPSession();
     await cdp.send('Extensions.loadUnpacked', {
-      path: resolve('dist/extension'),
+      path: resolve('dist/extension-fixture'),
     });
   }
   let worker =
@@ -66,9 +66,15 @@ try {
   await settings.goto(`chrome-extension://${id}/settings.html`);
   let popup!: Page;
   async function openPopup() {
-    popup = await context.newPage();
-    await popup.goto(`chrome-extension://${id}/popup.html`);
+    // A popup document test tab must not steal the active target during a run.
     await target.bringToFront();
+    const opened = context.waitForEvent('page');
+    await settings.evaluate(
+      (url) => chrome.tabs.create({ url, active: false }),
+      `chrome-extension://${id}/popup.html`,
+    );
+    popup = await opened;
+    await popup.waitForURL(`chrome-extension://${id}/popup.html`);
     await popup
       .getByText('対応する申込フォームを検出しました', { exact: true })
       .waitFor();

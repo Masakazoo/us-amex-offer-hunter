@@ -47,16 +47,18 @@ Playwright公式: [Request lifecycle/timing](https://playwright.dev/docs/api/cla
 - `redaction`: 任意objectを保存する汎用redactではなく、既知のプロパティだけから新規objectを構築。unknown host/pathのaliasは実行間比較には使えない。将来、実機確認済みの固定routeだけをcode reviewで許可する。
 - `schemas`: nested strict schema。PIIや自由文結果、raw URL、未定義フィールドを拒否。schemaエラーもraw出力しない。
 
-## Chrome Extension（Phase 2B・ローカル限定）
+## Chrome Extension（暗号化保管・設定・Popup）
 
-MV3、Vanilla TypeScript、esbuildでdistへビルド。popupで7項目を編集・storage.localへ保存し、明示的な検出とFill Nowを実行する。
-main frame / ISOLATED worldで自己完結した入力関数を実行。検出時のdocument IDとtab IDを保持し、入力時の再検証も行う。
-manifestはloopbackだけにhost権限を付け、入力関数もport/path/query/hashを確認する。background workerはstorageアクセスをTRUSTED_CONTEXTSへ制限する。
-profileのstrict schemaと研究Observationは独立し、値を診断結果へ返さない。永続保存・編集・全削除はユーザーの明示依頼に基づく。
-詳細・ガード・限界は[extension README](../apps/extension/README.md)を正本とする。
+MV3、Vanilla TypeScript、esbuild。設定タブで36項目を暗号化保存し、通常Popupで対象を自動検出、必要なら解除、本人の明示クリックで入力する。解除だけでは入力しない。
+
+Workerが保管庫と処理を所有し、origin/path・tab/document・revision/epoch/operation IDを検査する。main frameのISOLATED worldでDOMと現在値を直前に再検証し、既存値を保持。結果は固定field/statusのみをsessionへ保存する。localは暗号文と非秘密epoch、新方式のsync利用はない。旧平文キーは読取・変換・削除しない。
+
+通常版はAmex host権限と`storage`/`scripting`だけを持つ。合成版は別ディレクトリに出力し、loopbackだけを許可。旧7項目の保存キー・入力関数はバンドルに入れない。研究用probeとOffer Labは独立して保持。
+
+詳細は[拡張README](../apps/extension/README.md)、[保管層](ENCRYPTED-PROFILE-STORAGE.md)、[Popup契約](POPUP-AUTOFILL.md)、[配布物と移行](RELEASE-AND-MIGRATION.md)を参照。
 
 probeのdiagnoseは最小式からobserver件数までの独立評価。固定enum/boolean/件数のみのstrict schemaで出力し、URL・例外本文・フォーム値は含めない。診断はCLI表示だけでreportへ保存しない。
 
 ## 将来拡張の順序
 
-ローカルFill Now MVPは実装済み。実Amex適合性の検証、未解決のmain frame DOM取得問題、条件注釈・Offer Lab比較UIは今後の作業。body解析が必要になっても、まず構造のみをメモリで検査し、安全性を明示判断したendpoint/field単位のadapterを追加する。未知bodyを再帰保存する機能は作らない。
+暗号化保存と合成フォームでの明示Autofillは実装済み。実Amex適合性の検証、未解決のmain frame DOM取得問題、条件注釈・Offer Lab比較UIは今後の作業。body解析が必要になっても、まず構造のみをメモリで検査し、安全性を明示判断したendpoint/field単位のadapterを追加する。未知bodyを再帰保存する機能は作らない。

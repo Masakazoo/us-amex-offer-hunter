@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { fieldSpecs, profileSchema } from './profile.js';
+import { fieldSpecs, profileSchema } from './profile-fields.js';
 
 export type FullFieldSpec = {
   key: string;

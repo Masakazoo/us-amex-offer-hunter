@@ -32,7 +32,7 @@ ID/name/label/type、可視/無効/readonly、一意性、maxlength/minlength等
 
 ## ビルドと合成検証
 
-通常の `npm run build:extension` は確認済みAmex origin/pathだけを許可し、loopback権限とfixture判定を無効化する。旧7項目の平文Popupは通常UIから除去した。以前の保存キー・DMGは読取・変換・削除しない。
+通常の `npm run build:extension` はAmex host権限を持ち、コードで確認済みorigin/pathに限定する。loopback権限とfixture判定を無効化する。旧7項目の平文Popupは通常UIから除去した。以前の保存キー・DMGは読取・変換・削除しない。
 
 ```sh
 npm run check
@@ -42,7 +42,7 @@ PROBE_TEST_BROWSER=chromium npm run test:settings
 PROBE_TEST_BROWSER=chrome npm run test:extension
 ```
 
-`test:extension`だけは`AUTOFILL_FIXTURE=1`でテスト用拡張を生成し、ブラウザ内で合成フォームを返す。localhostサーバー・実Amexへの通信は不要。終了後に通常配布物が必要なら`npm run build:extension`を再実行する。実在人物の値やユーザープロファイルは使わず、trace/HARを作らない。
+`test:extension`だけは`AUTOFILL_FIXTURE=1`でテスト用拡張を生成し、ブラウザ内で合成フォームを返す。localhostサーバー・実Amexへの通信は不要。出力は`dist/extension-fixture`で、通常版を上書きしない。合成版はloopback権限のみで実Amexの権限を持たない。実在人物の値やユーザープロファイルは使わず、trace/HARを作らない。
 
 合成MV3検証は未登録/対象外/誤PW/IME/長文、解除のみでは未入力、明示入力、Popup再表示、二重実行拒否、既存値、一部失敗、停止、設定からのlock、保持OFF、文書遷移、Worker再起動、非秘密の結果保存を対象とする。DOM回帰は最後のguard/focusによる値・属性変更と、危険/類似/変更された住所候補の非クリックを対象とする。通常ChromeのテストではCDPで使い捨て拡張をロードし、ネイティブaction Popupの入力・途中閉鎖・結果再表示も検証する。CDPロードは一時的なので、ブラウザ再起動後の継続インストールの証拠にはしない。
 
