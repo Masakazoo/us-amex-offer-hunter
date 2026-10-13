@@ -1,12 +1,12 @@
 # 暗号化・セッション設計 Spike (#10)
 
-2026-10-10。対象は合成データ専用PoCと設計。#11の本実装、設定/Popup UI、実Amex入力、旧保管庫の読取・削除は行わない。[UX正本](AUTOFILL-UX-SPEC.md)を維持する。
+2026-10-10作成、2026-10-13追補。対象は合成データ専用PoCと設計。#11の本実装、製品の設定/Popup UI、実Amex入力、旧保管庫の読取・削除は行わない。[UX正本](AUTOFILL-UX-SPEC.md)を維持する。合成検証用Popupには固定データ用ボタンのみ追加した。
 
 ## 1. 結論と採用条件
 
 推奨は **Web Crypto / AES-256-GCM / PBKDF2-HMAC-SHA-256 600,000回**。永続先は `chrome.storage.local` の暗号文レコード1個。解除中だけ `chrome.storage.session` に32-byte復号素材をbase64で置き、操作ごとに非抽出可能なCryptoKeyへimportする。パスワード・平文プロフィールをsessionへ保存しない。
 
-Braveの実MV3でWorker停止を越える保持とブラウザプロセス再起動時の消失を確認した。通常版Google ChromeでのGUI終了、背景実行、実Popup、パッケージ更新は未確認であり、全DoD達成とはしない。#11の設計レビューは可能だが、正式着手には未確認項目の確認と設計承認が必要。PoCコードをそのまま本番へ移植しない。
+2026-10-13にユーザーがこの基本設計を承認。通常Google Chrome 155で拡張再読込、無効化→再有効化、メニュー終了→同じprofileで再起動した際の再認証を確認した。Worker強制停止後の保持と実Popup開閉も確認。最新の証拠・簡潔な再現手順・後続検証は [CHROME-VALIDATION.md](CHROME-VALIDATION.md) を参照。PR #18のマージと#11着手は別途ユーザー判断。PoCコードをそのまま本番へ移植しない。
 
 ## 2. 暗号方式・KDF比較
 
@@ -80,7 +80,7 @@ JavaScriptのstring、GC、structured serialization、Web Crypto内部コピー�
 - #11/#13ではさらにsession epoch・operation ID・tabId/documentIdを結び付け、同一revisionでもlock後の古い要求が再unlock後に使われないようにする。ロック受付時にepochを進め、長い処理の結果を注入前に再確認。PoCは短い直列操作のみで、長時間注入/ロック割込を証明しない。
 - incognitoは別コンテキスト競合を増やすため本番では無効を推奨。Chromeプロファイルをまたぐ保持はしない。
 
-「Chrome終了」はブラウザプロセスの終了を意味する。ウィンドウを全部閉じてもmacOSや背景実行でChromeが残る場合があり、ロック保証に読み替えない。曖昧な場合は手動ロックを使う。OS画面ロック・sleep連動は今回の要件外。
+「Chrome終了まで」は保持の上限に関する案内であり、プロセス終了まで必ず保持する保証ではない。ウィンドウを全部閉じても背景実行で解除が続く場合があり、逆にprofile/拡張のアンロードで早く消える場合もある。今回のmacOS Chrome 155では全window閉鎖後、ブラウザへのCDP接続は生存したが、再表示時は新Worker・ロック中となった。原因を断定せず、全環境で同じ挙動と一般化しない。確実に失効させたいときは手動ロック。後続UIでは保持チェック直下にこの注意を表示する（[UX仕様](AUTOFILL-UX-SPEC.md#5-暗号化ロックデータ境界)）。OS画面ロック・sleep連動は今回の要件外。
 
 ## 6. 変更・削除・失敗・マイグレーション
 
@@ -170,18 +170,11 @@ SECURITY_HEADED=1 npm run test:security         # headed Brave
 | 拡張再読込                                            | Unknown（再読込後ページがブロック）。パッケージ更新もUnknown                                            |
 | 複数Window                                            | 独立windowから同revisionの並行変更は1件成功。長時間注入中の割込はUnknown                                |
 
-通常版Google Chromeの自動化は `--load-extension` でWorkerが出現せず、DevTools `Extensions.loadUnpacked` も `Method not available`。この環境では自動検証経路が成立しなかった。Chromeで成功したと読み替えない。補足: [Playwrightの拡張テスト制約](https://playwright.dev/docs/chrome-extensions)。
+上表は2026-10-10時点の履歴。2026-10-13には通常Chromeで再読込・再起動を確認した（[最新検証表](CHROME-VALIDATION.md)）。過去の `Extensions.loadUnpacked` の `Method not available` はpage-targetへの送信によるものだった。browser-targetでは呼べたが一時的な読込であり、再起動後に拡張ページがブロックされた。その後の再ロードを再起動時の失効証拠に使わない。現在のChrome用試験は最初にUIから読込を行い、再起動時に再インストールしない。補足: [Playwrightの拡張テスト制約](https://playwright.dev/docs/chrome-extensions)。
 
-### #10を完了するための手動確認
+### 手動確認（初期案・最新手順への案内）
 
-隔離した新規Chrome profileに `dist/security-spike` をunpackedでロードし、DevToolsで合成コマンドだけを送る。通常profileを使わない。検証後はこの合成profileだけ整理する。
-
-1. harnessで `chrome.runtime.sendMessage({op:'create', password:'SYNTHETIC test password'})`、次にunlock。statusはbool/revisionだけで、storage全体をログに出さない。
-2. 実toolbar Popupを開閉し、再表示のstatusを確認。開くだけではuseしない。
-3. DevToolsを閉じてidle停止を待ち、再表示時のboot ID変化と保持を確認。
-4. Chromeをウィンドウ閉鎖/メニュー終了でそれぞれ操作。背景実行設定ON/OFFを記録し、プロセス終了時のみ再認証となるか確認。
-5. 拡張再読込/無効→有効/バージョン変更で解除が消えることを確認。
-6. 低速端末で5回以上の解除時間とメモリを測る。失敗/unknownを成功欄へ移さない。
+合成ボタンで操作できる [最新の手動手順](CHROME-VALIDATION.md#手動で再現する手順) を使う。DevToolsへのパスワード入力やstorage全体の表示は不要。実プロフィール・実Amex・電源断・配布更新経路の検証は後続Issueへ分離する。
 
 ## 10. #11への具体的引き継ぎ
 
@@ -202,6 +195,6 @@ Web Cryptoの `getRandomValues/importKey/deriveBits/encrypt/decrypt`、Chrome `s
 
 エラー分類: `NOT_REGISTERED`, `LOCKED`, `AUTH_OR_CORRUPT`, `INVALID_INPUT`, `UNSUPPORTED_VERSION`, `CONFLICT`, `UNAUTHORIZED`, `STORAGE_READ`, `STORAGE_WRITE`, `COMMIT_UNKNOWN`, `CANCELLED`。生のZod error/exceptionはPIIを含み得るので固定コードに変換。PoCの `INVALID_OR_STORAGE` は簡略版で本番分類の代替ではない。
 
-#11テスト: schema/bounds/乱数長、AAD全項目、誤PW/改ざん、create/update/change/reset、古いrevision/epoch、one-shot race、lock中断、session故障、set前/後/読戻し失敗、未知version、破損時reset、平文・鍵の永続化/ログ不在、実Chrome lifecycle。KDF低強度へのテスト専用分岐を本番に混ぜない。
+#11テスト: schema/bounds/乱数長、AAD全項目、誤PW/改ざん、create/update/change/reset、古いrevision/epoch、one-shot race、lock中断、session故障、set前/後/読戻し失敗、未知version、破損時reset、平文・鍵の永続化/ログ不在、実Chrome lifecycle。session素材も32-byte canonical base64として検証し、不正な素材で解除済みを表示しない。KDF低強度へのテスト専用分岐を本番に混ぜない。
 
 順序は **#10確認・承認→#11暗号層→#12日本語+US英語設定→#13 Popup/明示入力→#16実機E2Eと本人移行確認**。#12はマスク/強度/初期化確認、#13は操作所有・epoch・document束縛・非秘密結果の保持、#16は通常Chrome/実Popup/実サイトと移行後整理を担当する。旧コードの一括マージはしない。

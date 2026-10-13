@@ -12,7 +12,7 @@ const password = 'SYNTHETIC test password';
 const browser = process.env.SECURITY_BROWSER ?? 'brave';
 const options = {
   ignoreDefaultArgs: ['--disable-extensions'],
-  headless: process.env.SECURITY_HEADED !== '1',
+  headless: browser !== 'chrome' && process.env.SECURITY_HEADED !== '1',
   ...(browser === 'chromium'
     ? { channel: 'chromium' }
     : {
@@ -22,25 +22,36 @@ const options = {
             : '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
       }),
   args: [
-    ...(browser === 'chrome' ? ['--enable-unsafe-extension-debugging'] : []),
-    `--disable-extensions-except=${extension}`,
-    `--load-extension=${extension}`,
+    ...(browser === 'chrome'
+      ? []
+      : [
+          `--disable-extensions-except=${extension}`,
+          `--load-extension=${extension}`,
+        ]),
   ],
 };
+let installed = false;
 async function launch() {
   const ctx = await chromium.launchPersistentContext(profile, options);
-  if (browser === 'chrome') {
-    const probe = await ctx.newPage();
-    const cdp = await ctx.newCDPSession(probe);
+  if (browser === 'chrome' && !installed) {
+    // CDP loadUnpacked is transient. UI installation persists across restart,
+    // so restart assertions must not silently reload/reinstall the extension.
     try {
-      await cdp.send('Extensions.loadUnpacked', { path: extension });
+      const manager = await ctx.newPage();
+      await manager.goto('chrome://extensions/');
+      console.log(
+        'ACTION Chrome: enable Developer mode; Load unpacked: dist/security-spike (synthetic extension only). Waiting up to 120 seconds.',
+      );
+      await ctx.waitForEvent('serviceworker', {
+        predicate: (worker) => worker.url().endsWith('/worker.js'),
+        timeout: 120_000,
+      });
+      installed = true;
     } catch (error) {
       await ctx.close();
       await rm(profile, { recursive: true, force: true });
       throw error;
     }
-    await cdp.detach();
-    await probe.close();
   }
   return ctx;
 }
@@ -59,8 +70,16 @@ const pass = (label: string) => console.log(`PASS ${label}`);
 try {
   context.setDefaultTimeout(10000);
   const worker =
-    context.serviceWorkers()[0] ??
-    (await context.waitForEvent('serviceworker'));
+    context
+      .serviceWorkers()
+      .find((worker) => worker.url().endsWith('/worker.js')) ??
+    (await context.waitForEvent('serviceworker', {
+      predicate: (worker) => worker.url().endsWith('/worker.js'),
+    }));
+  assert.equal(
+    await worker.evaluate(() => chrome.runtime.getManifest().name),
+    'Synthetic security spike — never enter personal data',
+  );
   const id = new URL(worker.url()).host;
   const url = `chrome-extension://${id}/harness.html`;
   let page = await context.newPage();

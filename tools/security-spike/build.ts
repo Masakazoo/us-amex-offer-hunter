@@ -10,6 +10,13 @@ await build({
   platform: 'browser',
   target: 'chrome120',
 });
+await build({
+  entryPoints: ['tools/security-spike/harness.ts'],
+  outfile: `${out}/harness.js`,
+  bundle: true,
+  platform: 'browser',
+  target: 'chrome120',
+});
 await writeFile(
   `${out}/manifest.json`,
   JSON.stringify({
@@ -28,5 +35,13 @@ await writeFile(
 );
 await writeFile(
   `${out}/harness.html`,
-  '<!doctype html><meta charset="utf-8"><title>Synthetic security harness</title><p>Automated synthetic tests only. No profile input.</p>',
+  `<!doctype html><html lang="ja"><meta charset="utf-8"><title>Synthetic security harness</title>
+  <h1>合成データ専用の検証</h1><p>実プロフィール・実パスワードは入力できません。外部フォームには入力しません。</p>
+  <button data-op="create">合成データを作成</button>
+  <label><input id="keep" type="checkbox" checked>解除保持 ON</label>
+  <button data-op="unlock">合成パスワードで解除</button>
+  <button data-op="use">合成データを1回使用</button>
+  <button data-op="lock">ロック</button><button data-op="status">状態更新</button>
+  <p><output id="status" aria-live="polite">確認中</output></p>
+  <script src="harness.js"></script></html>`,
 );
