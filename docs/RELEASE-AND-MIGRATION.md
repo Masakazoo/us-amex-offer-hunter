@@ -108,4 +108,6 @@ Worker停止、拡張再読込、ブラウザプロセス終了は別の事象�
 
 残ったfailureはbusinessNameOnCardとbusinessAddressLine1のchanged、numberOfEmployeesのvalidation-error。従業員数の公開エラー文は1〜999を要求していたため、自動入力前の形式検査と案内へ反映する。保存値を推定・補正しない。nameOnCardは既存値保持、6任意項目は登録値なし。全36項目の成功や完全一致は未達であり、未登録値を創作して件数を埋めない。
 
-本人承認後、カード表示用の事業名・氏名と住所行/CityのASCII英字大小・前後/連続空白だけを一致扱いにした。比較だけを変更し、保存値・既存入力を変更しない。合成DOMで既存値保持、サイトによる入力後整形、略記/番地/非ASCII文字差の拒否を検証する。この追加修正を反映した実フォーム再試験は未実施。
+本人承認後、カード表示用の事業名・氏名と住所行/CityのASCII英字大小・前後/連続空白だけを一致扱いにした。比較だけを変更し、保存値・既存入力を変更しない。合成DOMで既存値保持、サイトによる入力後整形、略記/番地/非ASCII文字差の拒否を検証済み。96 unit tests・lint/typecheck/formatと実MV3回帰も成功し、独立レビューの指摘なし。
+
+追加修正後、本人による再読込・解除を受けて実フォームを再試験。結果は18 filled / 3 matched / 7 conditional / 7 review / 1 failure。カード表示事業名はfilled、氏名はmatched。事業住所はaddress-review（欄は非空・aria-invalidなし）、従業員数はinvalid-valueとして入力前に除外（欄は空）。任意6項目は登録値なし。申込送信・同意・CAPTCHAは操作せず、確認後に拡張をロックした。全36項目の成功は未達。
