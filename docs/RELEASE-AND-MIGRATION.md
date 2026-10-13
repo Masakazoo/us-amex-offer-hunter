@@ -82,5 +82,6 @@ Worker停止、拡張再読込、ブラウザプロセス終了は別の事象�
 - 確認済み: Linux headedの新E2Eで、登録・再起動・旧キー保全・明示入力・一致結果・古い別window開始拒否・実行中focus変更によるguard拒否と残項目不変。最初のCIはその後の`runtime.reload`で停止した。
 - テスト経路を修正: コマンドライン読込のChromiumはversionを上げた同一profile再起動、UI導入の通常Chromeは`runtime.reload`のまま。更新後の暗号文・session・再入力・初期化まで含む最新CIの結果は[PR #22](https://github.com/Masakazoo/us-amex-offer-hunter/pull/22)に記録する。
 - 独立レビュー: 製品差分・focus境界・更新テストの追加差分にblocking findingsなし。通常Chrome実機の成功証拠とは扱わない。
-- 未確認: 今回の通常Chrome全ライフサイクルとネイティブPopup回帰。専用の使い捨てprofileへの初回UI読込・window選択に本人の補助が必要。普段使いprofileへ切り替えて試験しない。
-- 未実施: 実Amex入力、本人の旧データの読取・移行・削除。各対象と操作の事前承認が必要。Issue #16はopen、PR #22はDraftとして提示する。
+- 確認済み: macOS / 通常Chrome 155.0.8059.40で、本人が使い捨てprofileへ一度だけUI導入し、製品ライフサイクルE2E全体が成功。再インストールなしのブラウザ再起動、複数window、`runtime.reload`による0.4.0→0.4.1更新、暗号文保持・session失効・再解除/再入力、初期化キャンセル/確定、旧合成キー保持まで確認。解除roundtripはこの端末の一回測定で220ms（低速端末の保証ではない）。
+- 確認済み: 通常ChromeのネイティブPopupで明示入力、入力中に閉じる、再表示後の結果確認を含む回帰E2Eも成功。テスト用Chromeの選択に手動補助が必要だった。別profileにも合成拡張が読み込まれたが、そこで試験・プロフィール登録・実サイト操作は行っていない。
+- 未実施: 実Amex入力、本人の旧データの読取・移行・削除。各対象と操作の事前承認が必要。Issue #16はopenを維持し、PR #22のマージは本人の明示承認を待つ。
