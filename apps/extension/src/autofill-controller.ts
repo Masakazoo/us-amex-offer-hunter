@@ -1,6 +1,6 @@
 import { isExtensionUI } from './extension-ui.js';
 import { z } from 'zod';
-import { fullFieldSpecs } from './full-profile.js';
+import { fullFieldSpecs, prepareAutofillProfile } from './full-profile.js';
 import { runFullAutofill } from './full-autofill.js';
 import { classifyTarget } from './target.js';
 import { ProfileVault, type Status } from './vault/service.js';
@@ -289,7 +289,7 @@ export class AutofillController {
               {
                 command: {
                   action: 'fill',
-                  values: profile,
+                  ...prepareAutofillProfile(profile),
                   source: 'encrypted-vault',
                   expectedUrl: active.target.url,
                   operationId: c.operationId,

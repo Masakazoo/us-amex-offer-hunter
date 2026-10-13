@@ -6,7 +6,7 @@
 
 - `apps/extension/src/vault/crypto.ts`: AES-256-GCM、PBKDF2-HMAC-SHA-256 600,000回、16-byte salt、12-byte IV、128-bit tag。メタデータ全体をAADへ含める。新規/PW変更でsalt更新、すべての暗号化でIV/revision更新。通常編集は既存鍵とsaltを使用し、直前IVとの一致を拒否。
 - 作成/変更パスワードは**12 Unicode code points以上**、最大1024 UTF-16 code units。長く一意なパスフレーズを推奨。文字種の強制・trim・Unicode正規化なし。不正な単独surrogateはUTF-8変換時の衝突を避けるため拒否。解除は既存暗号文の互換性のため非空を検査する。
-- 元PR #8の固定commit `3150ba6b51836ac037e73737cc122cad992c81af` から36項目の定義/条件validationを移植。完全なプロフィールのみ保存する。旧7項目から欠損値を捏造しない。選択肢は保存schemaの契約であり、現在の実Amex画面との一致を保証しない。
+- 元PR #8の固定commit `3150ba6b51836ac037e73737cc122cad992c81af` から36項目の定義/条件validationを移植。構造が正しい未入力・形式未完成の途中プロフィールも暗号化保存する。申込形式の検査はWorkerの自動入力前に行い、未完成の値はページへ渡さない。旧7項目から欠損値を捏造しない。選択肢は保存schemaの契約であり、現在の実Amex画面との一致を保証しない。
 - localの `encryptedProfileV1` は暗号文と公開envelope。`encryptedProfileEpochV1` は非秘密の失効UUID。sessionの `encryptedProfileSessionV1` は32-byte canonical base64復号素材、revision/epoch、keep、使用済operation ID（上限128）。`encryptedProfileAttemptV1` は次の解除試行時刻のみ。
 - パスワード・平文・復号鍵はlocal/sync/ログに出さない。session素材は実質的な復号鍵。Uint8Arrayはfinallyでzero-fillするが、JS文字列/GC/Web Crypto内部コピー/OS swapの完全消去は保証しない。暗号文のoffline総当たり・過去snapshotのrollbackも残余リスク。
 - local/sessionをTRUSTED_CONTEXTSへ制限した後に処理。初期化失敗は拒否。sync、外部通信、Native Messaging、追加host permissionなし。incognitoは無効。

@@ -1,9 +1,5 @@
 import { z } from 'zod';
-import {
-  fullProfileSchema,
-  profileIssues,
-  type FullProfile,
-} from '../full-profile.js';
+import { fullProfileSchema, type FullProfile } from '../full-profile.js';
 
 export type ErrorCode =
   | 'NOT_REGISTERED'
@@ -93,8 +89,7 @@ export function parseEnvelope(value: unknown): Envelope {
 }
 export function parseProfile(value: unknown): FullProfile {
   const result = fullProfileSchema.safeParse(value);
-  if (!result.success || profileIssues(result.data).length)
-    fail('INVALID_INPUT');
+  if (!result.success) fail('INVALID_INPUT');
   return result.data;
 }
 export function passwordValid(

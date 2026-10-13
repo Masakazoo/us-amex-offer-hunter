@@ -349,6 +349,7 @@ export type FullProfile = Record<string, string>;
 
 export function profileIssues(
   values: FullProfile,
+  validateInactiveFormats = false,
 ): { field: string; reason: 'required' | 'format' | 'inconsistent' }[] {
   const issues: ReturnType<typeof profileIssues> = [];
   for (const s of fullFieldSpecs) {
@@ -361,12 +362,14 @@ export function profileIssues(
         s.key,
       ) &&
         values.sameAddress === 'yes');
-    if (inactive) continue;
+    if (inactive && !validateInactiveFormats) continue;
     if (!value) {
-      if (!s.optional) issues.push({ field: s.key, reason: 'required' });
+      if (!s.optional && !inactive)
+        issues.push({ field: s.key, reason: 'required' });
       continue;
     }
     let valid = !!value.trim();
+    if (s.key === 'email') valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
     const digits = value.replace(/[ ()-]/g, '');
     if (s.format === 'digits') valid = /^\d{1,3}$/.test(value);
     if (s.format === 'zip') valid = /^\d{5}$/.test(value);
@@ -397,4 +400,21 @@ export function profileIssues(
   )
     issues.push({ field: 'industryType', reason: 'inconsistent' });
   return issues;
+}
+
+/** Remove unfinished values before crossing from the Worker into a web page. */
+export function prepareAutofillProfile(profile: FullProfile): {
+  values: FullProfile;
+  invalidFields: string[];
+} {
+  const values = { ...fullProfileSchema.parse(profile) };
+  const invalidFields = [
+    ...new Set(
+      profileIssues(values, true)
+        .filter((issue) => issue.reason !== 'required')
+        .map((issue) => issue.field),
+    ),
+  ];
+  for (const key of invalidFields) delete values[key];
+  return { values, invalidFields };
 }

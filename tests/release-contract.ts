@@ -157,7 +157,14 @@ export async function assertReleaseFields(
         names: kind === 'radio' ? 2 : 1,
         identity: true,
         type: kind === 'select' ? 'select-one' : kind,
-        labels: [label],
+        labels: [
+          'businessZipCode',
+          'zipCode',
+          'businessPhoneNumber',
+          'cellPhone',
+        ].includes(key)
+          ? [label, '']
+          : [label],
         value:
           kind === 'checkbox'
             ? null
@@ -198,7 +205,9 @@ export async function assertReleaseFields(
         field,
         status:
           pass === 'conditional' && conditionalReleaseKeys.includes(field)
-            ? 'conditional'
+            ? ['addressLine1', 'zipCode', 'city', 'state'].includes(field)
+              ? 'address-review'
+              : 'conditional'
             : pass === 'conditional' &&
                 ['companyStructure', 'doingBusinessAs', 'sameAddress'].includes(
                   field,

@@ -23,6 +23,7 @@ export function fullSentinelProfile(): FullProfile {
                   ? 'X'
                   : 'SENTINEL');
   }
+  data.email = 'synthetic@example.invalid';
   data.companyStructure = 'Sole Proprietorship';
   data.doingBusinessAs = 'yes';
   data.sameAddress = 'yes';

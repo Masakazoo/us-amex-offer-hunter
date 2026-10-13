@@ -68,6 +68,80 @@ try {
     });
     return { ...result, fields: result.fields.filter((f) => f.field === key) };
   }
+  await reset();
+  await page.locator('#sameAddress').check();
+  await page.evaluate(() => {
+    for (const key of ['zipCode', 'city', 'state']) {
+      const el = document.getElementById(key) as
+        HTMLInputElement | HTMLSelectElement;
+      el.disabled = false;
+      el.required = true;
+    }
+  });
+  for (const [key, value] of [
+    ['zipCode', '00000'],
+    ['city', 'TEST CITY'],
+    ['state', 'NY'],
+  ]) {
+    const result = await run(key!, value!);
+    assert.equal(result.fields[0]!.status, 'address-review');
+    assert.equal(await page.locator(`#${key}`).inputValue(), '');
+  }
+  await reset();
+  const draftResult = await page.evaluate(runFullAutofill, {
+    allowFixture: true,
+    specs: fullFieldSpecs,
+    command: {
+      action: 'fill',
+      source: 'encrypted-vault',
+      expectedUrl: url,
+      operationId: '00000000-0000-4000-8000-000000000001',
+      values: { firstName: 'SENTINEL' },
+      invalidFields: ['businessPhoneNumber', 'dateOfBirth', 'email'],
+    },
+  });
+  for (const key of ['businessPhoneNumber', 'dateOfBirth', 'email']) {
+    assert.equal(
+      draftResult.fields.find((f) => f.field === key)?.status,
+      'invalid-value',
+    );
+    assert.equal(await page.locator(`#${key}`).inputValue(), '');
+  }
+  assert.equal(await page.locator('#firstName').inputValue(), 'SENTINEL');
+  // Observed live markup: telephone widgets add an empty second label.
+  for (const key of ['businessZipCode', 'businessPhoneNumber', 'cellPhone']) {
+    for (const labelText of ['', 'Other field']) {
+      await reset();
+      await page.evaluate(
+        ({ key, labelText }) => {
+          const label = document.createElement('label');
+          label.htmlFor = key;
+          label.textContent = labelText;
+          document.getElementById(key)!.after(label);
+        },
+        { key, labelText },
+      );
+      const value = key === 'businessZipCode' ? '00000' : '0000000000';
+      const result = await run(key, value);
+      assert.equal(result.fields[0]!.status, labelText ? 'mismatch' : 'filled');
+      assert.equal(
+        (await page.locator(`#${key}`).inputValue()).replace(/[ ()-]/g, ''),
+        labelText ? '' : value,
+      );
+    }
+  }
+  await reset();
+  await page.locator('#sameAddress').check();
+  for (const [key, value] of [
+    ['zipCode', '00000'],
+    ['city', 'TEST CITY'],
+    ['state', 'NY'],
+  ]) {
+    const result = await run(key!, value!);
+    assert.equal(result.fields[0]!.status, 'address-review');
+    assert.equal(await page.locator(`#${key}`).inputValue(), '');
+    assert.equal(await page.locator(`#${key}`).isDisabled(), true);
+  }
   for (const kind of ['value', 'readonly', 'label', 'duplicate', 'focus']) {
     await reset();
     await page.evaluate((kind) => {

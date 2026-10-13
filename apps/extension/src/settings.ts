@@ -393,7 +393,10 @@ form.addEventListener('submit', (event) => {
     await request(payload);
     if (!alive) return;
     adopt(await fetchStatus());
-    notice('暗号化して保存しました。ロックされています。', 'success');
+    notice(
+      '暗号化して保存しました。ロックされています。このタブを閉じて構いません。',
+      'success',
+    );
   });
 });
 unlockForm.addEventListener('submit', (event) => {
