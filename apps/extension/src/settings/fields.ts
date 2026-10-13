@@ -39,7 +39,7 @@ export const sections: {
     description: 'パスワードと登録データを管理します。',
   },
 ];
-export const unverifiedLabels = new Set(['businessCity', 'businessState']);
+export const unverifiedLabels = new Set<string>();
 export const sensitiveFields = new Set(['ssn', 'federalTaxId']);
 // English strings are the stored values. Japanese strings are help text only.
 const optionHelp: Record<string, string> = {
@@ -161,7 +161,7 @@ export function hint(spec: FullFieldSpec): string {
   if (spec.format === 'date') return 'MM-DD-YYYY（月2桁・日2桁・西暦4桁）';
   if (spec.format === 'money')
     return 'USD・半角数字、小数は2桁まで（カンマなし）';
-  if (spec.format === 'digits') return '半角数字・3桁以内';
+  if (spec.format === 'digits') return '半角数字・1〜999';
   if (spec.key === 'email') return '例: name@example.com';
   if (spec.key === 'businessState' || spec.key === 'state')
     return '州・準州などの英語略号';

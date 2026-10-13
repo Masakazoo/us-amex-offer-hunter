@@ -217,7 +217,7 @@ try {
   await status(page, '未登録');
   await page.locator('#profile-form:not([hidden])').waitFor();
   assert.equal(await page.locator('.field').count(), 36);
-  assert.equal(await page.locator('.unverified').count(), 2);
+  assert.equal(await page.locator('.unverified').count(), 0);
   for (const spec of fullFieldSpecs)
     assert.ok(
       (

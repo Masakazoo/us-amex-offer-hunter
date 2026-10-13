@@ -371,7 +371,9 @@ export function profileIssues(
     let valid = !!value.trim();
     if (s.key === 'email') valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
     const digits = value.replace(/[ ()-]/g, '');
-    if (s.format === 'digits') valid = /^\d{1,3}$/.test(value);
+    if (s.format === 'digits')
+      valid =
+        /^\d{1,3}$/.test(value) && Number(value) >= 1 && Number(value) <= 999;
     if (s.format === 'zip') valid = /^\d{5}$/.test(value);
     if (s.format === 'phone') valid = /^\d{10}$/.test(digits);
     if (s.format === 'tax' || s.format === 'ssn')

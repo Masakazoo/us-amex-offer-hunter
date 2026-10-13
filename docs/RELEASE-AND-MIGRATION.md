@@ -101,3 +101,9 @@ Worker停止、拡張再読込、ブラウザプロセス終了は別の事象�
 - 実フォーム全36項目の入力成功は未検証。修正版で本人が自動入力を行い、各項目の値を手元で照合する工程が残る。合成テスト成功と実サイト100%入力を区別する。
 
 検証済み: 95 unit tests・lint/typecheck/format、配布監査、Chromiumの設定UI（途中create/update→再読込→解除）、実MV3のdraft除外、空ラベル/異ラベルDOM回帰、全36項目の合成release E2E・再起動/更新/初期化が成功。独立レビュー2回で阻害指摘なし。実Amexの構造読取と合成入力試験を分けて記録し、実サイトでの入力成功は本人再確認待ち。
+
+#### 本人承認後の実フォーム入力確認
+
+本人による拡張再読込・解除後、CodexがネイティブPopupから明示入力を実行。申込送信・同意・CAPTCHAは操作していない。修正版反映後の結果は17 filled / 2 matched / 7 conditional / 7 review / 3 failure。ZIPと事業/携帯電話はfilled、事業City/Stateはmatchedを確認。自宅住所はサイト側の同住所処理で非空・disabled・エラーなしになった。値そのものを記録せず、固定項目名・状態と空欄/無効のbooleanで照合した。
+
+残ったfailureはbusinessNameOnCardとbusinessAddressLine1のchanged、numberOfEmployeesのvalidation-error。従業員数の公開エラー文は1〜999を要求していたため、自動入力前の形式検査と案内へ反映する。保存値を推定・補正しない。nameOnCardは既存値保持、6任意項目は登録値なし。全36項目の成功や完全一致は未達であり、未登録値を創作して件数を埋めない。

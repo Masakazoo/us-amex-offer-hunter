@@ -33,6 +33,23 @@ describe('full encrypted profile', () => {
     expect(prepared.values.firstName).toBe('');
     expect(draft.email).toBe('draft@');
   });
+  it('excludes out-of-range employee counts while retaining them in encrypted drafts', () => {
+    for (const value of ['0', '000']) {
+      const draft = { ...fullSentinelProfile(), numberOfEmployees: value };
+      expect(fullProfileSchema.safeParse(draft).success).toBe(true);
+      expect(prepareAutofillProfile(draft).invalidFields).toContain(
+        'numberOfEmployees',
+      );
+    }
+    for (const value of ['1', '999']) {
+      expect(
+        prepareAutofillProfile({
+          ...fullSentinelProfile(),
+          numberOfEmployees: value,
+        }).invalidFields,
+      ).not.toContain('numberOfEmployees');
+    }
+  });
   it('roundtrips reviewed fields and explicitly chosen options', () => {
     const p = fullSentinelProfile();
     const parsed = fullProfileSchema.parse(p);
