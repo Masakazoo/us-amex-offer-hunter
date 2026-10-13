@@ -9,7 +9,13 @@ import {
   fullFieldSpecs,
   type FullProfile,
 } from '../apps/extension/src/full-profile.js';
-import { fullSentinelProfile } from './vault-fixture.js';
+import { storedProfileSchema } from '../apps/extension/src/profile.js';
+import {
+  releaseProfile,
+  releaseFields,
+  conditionalReleaseKeys,
+  assertReleaseFields,
+} from './release-contract.js';
 import { fullFixtureHtml } from './full-form-fixture.js';
 import { buildExtension } from '../tools/extension-build.js';
 
@@ -19,16 +25,25 @@ const extension = join(root, 'extension-fixture');
 const profile = join(root, 'browser-profile');
 await cp(resolve('dist/extension-fixture'), extension, { recursive: true });
 const chromeMode = process.env.PROBE_TEST_BROWSER === 'chrome';
-const fixture: FullProfile = {
-  ...fullSentinelProfile(),
-  email: 'synthetic@example.invalid',
-};
+const fixture: FullProfile = releaseProfile;
+assert.deepEqual(
+  fullFieldSpecs.map((field) => field.key).sort(),
+  releaseFields.map(([key]) => key).sort(),
+);
 const password = 'synthetic release passphrase';
 const base = 'http://127.0.0.1:4173/autofill-fixture';
-const legacy = {
+const legacy = storedProfileSchema.parse({
   version: 1,
-  values: { email: 'legacy-synthetic@example.invalid' },
-};
+  values: {
+    email: 'legacy-synthetic@example.invalid',
+    legalBusinessName: 'LEGACY-LEGAL',
+    businessNameOnCard: 'LEGACY-BUSINESS',
+    companyDBAName: 'LEGACY-DBA',
+    firstName: 'LEGACY-FIRST',
+    lastName: 'LEGACY-LAST',
+    nameOnCard: 'LEGACY-CARD',
+  },
+});
 let context: BrowserContext | undefined;
 let installed = false;
 let externalRequests = 0;
@@ -58,7 +73,7 @@ async function launch() {
     if (route.request().url() === base)
       return route.fulfill({
         contentType: 'text/html',
-        body: fullFixtureHtml(),
+        body: fullFixtureHtml({ radioDefaults: false }),
       });
     if (route.request().url().startsWith('chrome-extension:'))
       return route.continue();
@@ -148,7 +163,28 @@ async function waitTarget(popup: Page) {
 }
 async function fill(popup: Page) {
   await waitTarget(popup);
+  const before = await popup.evaluate(async () => {
+    const reply = await chrome.runtime.sendMessage({
+      channel: 'autofill-v1',
+      op: 'view',
+    });
+    return reply.view?.run?.operationId;
+  });
   await popup.locator('#fill').click();
+  // A prior run's completed label must not satisfy a repeat-run assertion.
+  await eventually(() =>
+    popup.evaluate(async (previous) => {
+      const reply = await chrome.runtime.sendMessage({
+        channel: 'autofill-v1',
+        op: 'view',
+      });
+      return (
+        reply.view?.run?.operationId !== previous &&
+        reply.view?.run?.phase === 'completed' &&
+        !reply.view?.busy
+      );
+    }, before),
+  );
   await state(popup, 'phase', '処理が完了しました');
 }
 async function noSubmit(page: Page) {
@@ -234,9 +270,33 @@ try {
   assert.equal(await target.locator('#email').inputValue(), '');
   await fill(popup);
   await noSubmit(target);
-  assert.match(await popup.locator('#summary').innerText(), /入力済み [1-9]/);
+  await assertReleaseFields(target, popup);
+  // Deliberately swap distinct markers: counts alone would miss this regression.
+  await target.locator('#firstName').fill(fixture.lastName!);
+  await target.locator('#lastName').fill(fixture.firstName!);
+  await assert.rejects(
+    assertReleaseFields(target, popup),
+    /FIELD_DOM:firstName/,
+  );
+  await target.locator('#firstName').fill(fixture.firstName!);
+  await target.locator('#lastName').fill(fixture.lastName!);
   await fill(popup);
-  assert.match(await popup.locator('#summary').innerText(), /一致済み [1-9]/);
+  await assertReleaseFields(target, popup, 'repeat');
+  // Existing live branch choices take precedence over the saved profile.
+  for (const key of conditionalReleaseKeys) {
+    if (key === 'state') await target.locator('#state').selectOption('');
+    else await target.locator(`#${key}`).fill('');
+  }
+  await target
+    .locator('#companyStructure')
+    .selectOption({ label: 'Sole Proprietorship' });
+  await target.locator('label[for="doingBusinessAs"]').click();
+  await target.locator('label[for="sameAddress"]').click();
+  await fill(popup);
+  await assertReleaseFields(target, popup, 'conditional');
+  console.log(
+    'PASS release: all 36 independent DOM/value/result contracts, formatted identifiers, selected options/radios, repeat matches and conditional no-write; swapped values rejected',
+  );
   await noSubmit(target);
   // Cross-window stale start must not silently retarget or inject into either page.
   await target.reload();
@@ -480,6 +540,7 @@ try {
   await popup.reload();
   await target.bringToFront();
   await fill(popup);
+  await assertReleaseFields(target, popup);
   await noSubmit(target);
   console.log(
     `PASS release: keep OFF consumes unlock; versioned ${chromeMode ? 'Chrome runtime reload' : 'Chromium browser restart (not runtime reload)'} preserves ciphertext, expires session, requires password and remains usable`,
