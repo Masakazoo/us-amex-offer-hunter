@@ -1,10 +1,10 @@
 import { fullFieldSpecs } from '../apps/extension/src/full-profile.js';
 
-export function fullFixtureHtml() {
+export function fullFixtureHtml({ radioDefaults = true } = {}) {
   const control = fullFieldSpecs
     .map((s) => {
       if (s.kind === 'radio')
-        return `<fieldset>${s.options!.map((value, i) => `<label for="${s.key}-${i}">${value}</label><input style="opacity:0" id="${s.key}-${i}" type="radio" name="${s.key === 'cardDesign' ? 'color' : 'material'}-fixture" value="${i}" ${i === 0 ? 'checked' : ''}>`).join('')}</fieldset>`;
+        return `<fieldset>${s.options!.map((value, i) => `<label for="${s.key}-${i}">${value}</label><input style="opacity:0" id="${s.key}-${i}" type="radio" name="${s.key === 'cardDesign' ? 'color' : 'material'}-fixture" value="${i}" ${radioDefaults && i === 0 ? 'checked' : ''}>`).join('')}</fieldset>`;
       const label = `<label for="${s.key}">${s.label} *</label>`;
       if (s.kind === 'select')
         return (

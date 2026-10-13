@@ -91,6 +91,19 @@ export async function auditExtension(directory = 'dist/extension') {
       ),
       'PACKAGE_FORBIDDEN_CONTENT',
     );
+    if (name.endsWith('.css')) {
+      // These two bundled stylesheets intentionally have no resource dependencies.
+      // Reject all loading syntax (including local/data URLs), not just http URLs.
+      // Escaped identifiers are outside this deliberately small package contract;
+      // rejecting them prevents escaped @import/url from evading the check.
+      // Scan raw text too: comment-looking text inside strings must not hide URLs.
+      // This conservative policy also rejects loading examples in comments.
+      const css = `${source}\n${source.replace(/\/\*[\s\S]*?\*\//g, '')}`;
+      assert.ok(
+        !/\\|@import\b|(?:url|image-set|src)\s*\(/i.test(css),
+        'PACKAGE_CSS_RESOURCE',
+      );
+    }
     if (name.endsWith('.html'))
       assert.ok(
         !/(?:src|href)\s*=\s*["'](?:https?:|\/\/|data:)/i.test(source),
