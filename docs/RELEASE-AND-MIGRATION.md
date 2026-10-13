@@ -75,3 +75,12 @@ Worker停止、拡張再読込、ブラウザプロセス終了は別の事象�
 ## 検証記録
 
 実行後に、環境・実施したケース・確認済みと未確認を分けて追記する。Issue #16は本人の実Amex確認・旧資産移行判断が残る間、完了にしない。PRマージはユーザーの明示承認を待つ。
+
+### 2026-10-13 / PR #22
+
+- 確認済み: macOSで93 unit tests、lint/typecheck/format、通常配布物監査と負例、既存Chromium Popup/MV3・設定UI回帰。
+- 確認済み: Linux headedの新E2Eで、登録・再起動・旧キー保全・明示入力・一致結果・古い別window開始拒否・実行中focus変更によるguard拒否と残項目不変。最初のCIはその後の`runtime.reload`で停止した。
+- テスト経路を修正: コマンドライン読込のChromiumはversionを上げた同一profile再起動、UI導入の通常Chromeは`runtime.reload`のまま。更新後の暗号文・session・再入力・初期化まで含む最新CIの結果は[PR #22](https://github.com/Masakazoo/us-amex-offer-hunter/pull/22)に記録する。
+- 独立レビュー: 製品差分・focus境界・更新テストの追加差分にblocking findingsなし。通常Chrome実機の成功証拠とは扱わない。
+- 未確認: 今回の通常Chrome全ライフサイクルとネイティブPopup回帰。専用の使い捨てprofileへの初回UI読込・window選択に本人の補助が必要。普段使いprofileへ切り替えて試験しない。
+- 未実施: 実Amex入力、本人の旧データの読取・移行・削除。各対象と操作の事前承認が必要。Issue #16はopen、PR #22はDraftとして提示する。
