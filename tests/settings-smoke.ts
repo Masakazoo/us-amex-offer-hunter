@@ -45,13 +45,118 @@ async function status(page: Page, text: string) {
 async function go(page: Page, section: string) {
   await page.locator(`#nav-${section}`).click();
 }
+// Hold a real request before dispatch, so the busy assertions cannot race a
+// fast crypto operation. Release through the original API; do not fake success.
+async function whileBusy(
+  page: Page,
+  op: string,
+  trigger: () => Promise<unknown>,
+) {
+  await page.evaluate((op) => {
+    const original = chrome.runtime.sendMessage.bind(chrome.runtime);
+    const gate = window as typeof window & { releaseBusyRequest?: () => void };
+    chrome.runtime.sendMessage = (async (
+      message: Record<string, unknown>,
+    ): Promise<unknown> => {
+      if (message.op === op) {
+        chrome.runtime.sendMessage = original;
+        await new Promise<void>((resolve) => {
+          gate.releaseBusyRequest = resolve;
+        });
+      }
+      return original(message);
+    }) as typeof chrome.runtime.sendMessage;
+  }, op);
+  try {
+    await trigger();
+    await page.waitForFunction(
+      () =>
+        typeof (window as typeof window & { releaseBusyRequest?: () => void })
+          .releaseBusyRequest === 'function',
+    );
+    assert.equal(
+      await page.locator('#profile-form').getAttribute('aria-busy'),
+      'true',
+    );
+    const visible = page.locator('input,select').filter({ visible: true });
+    if (op === 'unlock')
+      assert.ok(await visible.count(), 'unlock must exercise visible controls');
+    assert.deepEqual(
+      await visible.evaluateAll((nodes) =>
+        nodes
+          .filter(
+            (node) => !(node as HTMLInputElement | HTMLSelectElement).disabled,
+          )
+          .map((node) => node.id),
+      ),
+      [],
+      `${op}: visible controls must be disabled`,
+    );
+    // The profile is concealed during some operations. Its conditional fields
+    // must also stay disabled, ready for any render while the request is pending.
+    assert.equal(
+      await page
+        .locator('#profile-form input:enabled, #profile-form select:enabled')
+        .count(),
+      0,
+    );
+    // A disabled text field cannot accept focus or keyboard edits.
+    const text = page
+      .locator('input[type="password"]')
+      .filter({ visible: true })
+      .first();
+    if (await text.count()) {
+      const before = await text.inputValue();
+      await text.focus();
+      assert.equal(
+        await text.evaluate((node) => node === document.activeElement),
+        false,
+      );
+      await page.keyboard.type('SHOULD-NOT-BE-ENTERED');
+      assert.equal(await text.inputValue(), before);
+    }
+  } finally {
+    await page.evaluate(() => {
+      const gate = window as typeof window & {
+        releaseBusyRequest?: () => void;
+      };
+      gate.releaseBusyRequest?.();
+      delete gate.releaseBusyRequest;
+    });
+  }
+}
+async function conditionsRestored(page: Page) {
+  await page.waitForFunction(
+    () =>
+      document.getElementById('profile-form')?.getAttribute('aria-busy') ===
+      'false',
+  );
+  assert.deepEqual(
+    await page.locator('.field').evaluateAll((fields) =>
+      fields.flatMap((wrapper) =>
+        Array.from(
+          wrapper.querySelectorAll<HTMLInputElement | HTMLSelectElement>(
+            'input,select',
+          ),
+        )
+          .filter(
+            (control) => control.disabled !== (wrapper as HTMLElement).hidden,
+          )
+          .map((control) => control.id),
+      ),
+    ),
+    [],
+    'idle: only conditionally inactive profile fields remain disabled',
+  );
+}
 async function unlock(page: Page, pw = password, keep = true) {
   await page.waitForTimeout(1100);
   await page.locator('#unlock-password').fill(pw);
   await page.locator('#keep-unlocked').setChecked(keep);
-  await page.locator('#unlock-submit').click();
+  await whileBusy(page, 'unlock', () => page.locator('#unlock-submit').click());
   await page.locator('#profile-form:not([hidden])').waitFor();
   await status(page, '解除済み');
+  await conditionsRestored(page);
 }
 async function fillAll(page: Page) {
   for (const section of ['business', 'personal', 'design']) {
@@ -145,15 +250,21 @@ try {
     await field(page, 'companyDBAName').getAttribute('required'),
     '',
   );
+  await conditionsRestored(page);
   await field(page, 'doingBusinessAs').check();
+  await conditionsRestored(page);
   await field(page, 'companyStructure').selectOption('Corporation');
   assert.equal(await field(page, 'federalTaxId').isVisible(), true);
+  await conditionsRestored(page);
   await field(page, 'companyStructure').selectOption('Sole Proprietorship');
+  await conditionsRestored(page);
   await go(page, 'personal');
   assert.equal(await field(page, 'addressLine1').isVisible(), false);
   await field(page, 'sameAddress').uncheck();
   assert.equal(await field(page, 'addressLine1').isVisible(), true);
+  await conditionsRestored(page);
   await field(page, 'sameAddress').check();
+  await conditionsRestored(page);
   assert.equal(await field(page, 'ssn').getAttribute('type'), 'password');
   assert.equal(
     await field(page, 'dateOfBirth').getAttribute('type'),
@@ -179,7 +290,7 @@ try {
     .getByText('確認用パスワードが一致しません。', { exact: true })
     .waitFor();
   await page.locator('#confirm-password').fill(password);
-  await page.locator('#save-profile').click();
+  await whileBusy(page, 'create', () => page.locator('#save-profile').click());
   await page
     .getByText('暗号化して保存しました。ロックされています。', { exact: true })
     .waitFor();
@@ -239,7 +350,7 @@ try {
     await page.locator('#change-password-submit').isDisabled(),
     true,
   );
-  await page.locator('#save-profile').click();
+  await whileBusy(page, 'update', () => page.locator('#save-profile').click());
   await status(page, 'ロック中');
   await unlock(page);
   await go(page, 'personal');
@@ -318,7 +429,9 @@ try {
   await go(page, 'security');
   await page.locator('#change-password').fill(nextPassword);
   await page.locator('#change-confirm').fill(nextPassword);
-  await page.locator('#change-password-submit').click();
+  await whileBusy(page, 'changePassword', () =>
+    page.locator('#change-password-submit').click(),
+  );
   await page
     .getByText(
       'パスワードを変更しました。新しいパスワードで解除してください。',
@@ -335,7 +448,7 @@ try {
     .waitFor();
   await unlock(page, nextPassword);
   console.log(
-    'PASS settings: browser restart, wrong password, edit/save, background draft, cross-tab lock and password change',
+    'PASS settings: browser restart, wrong password, edit/save, background draft, cross-tab lock, password change, busy controls and idle conditional restoration',
   );
   // Fixed UI fault response: existing ciphertext stays intact and no success appears.
   await go(page, 'personal');
@@ -419,7 +532,7 @@ try {
   await go(page, 'security');
   await page.locator('#new-password').fill(password);
   await page.locator('#confirm-password').fill(password);
-  await page.locator('#save-profile').click();
+  await whileBusy(page, 'create', () => page.locator('#save-profile').click());
   await page.locator('#recovery:not([hidden])').waitFor();
   assert.equal(await field(page, 'firstName').inputValue(), '');
   assert.equal(await page.locator('#reload-extension').isVisible(), true);

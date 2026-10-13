@@ -32,6 +32,7 @@
 - 値の保持先は設定documentの入力要素だけ。プロフィールの別キャッシュ、local/session保存、localStorage、IndexedDB、ログ、外部送信なし。明示操作時のmessageには必要なプロフィールを含む。
 - タブが非表示になると編集フォームを隠し、表示切替をマスクへ戻し、パスワード欄を消す。戻った際にrevision/epochと解除状態が同じなら編集中データを再表示する。状態照会が終わるまで古い値を表示しない。
 - 別の設定タブ等のロック/更新/削除は`storage.onChanged`で検知し、Workerの状態を再照会。失効・競合なら未保存の値も消す。UIだけで解除済み状態を復元しない。
+- 処理中は入力・選択を無効化する。条件付き項目も `busy || 条件により非表示` で無効化し、処理後は条件に該当する項目だけ無効のままにする。
 - 手動ロック、保存、PW変更、初期化では送信前に画面からプロフィールを消す。pagehideでも消去し、BFCache復帰は再照会から始める。未保存の変更があるページを閉じる/再読込する際はブラウザの確認を求める。
 - `readForEditing(revision,epoch)`は、完全一致の正規設定タブへの専用応答のみ。popup/content script/query付きURL等へ平文を返さない。復号中のlock受付とrevision/epoch変更を再検査し、設定document側も応答の受信後に再照会してから値を表示する。
 - 編集読込は一回限りAutofillの使用開始ではないため、保持OFFでも読込時にsessionを消費しない。保存/PW変更/手動lockでは失効する。OFFで設定タブを閉じた場合のlock送信はbest effortであり、document終了時の通信完了を保証しない。実Autofill開始時の一回消費は#11の契約を維持し、#13で統合する。
@@ -61,3 +62,5 @@ Playwrightの通常接続はfocus emulationにより全タブをvisibleとして
 このテストは本番Amex入力、本人の旧DMG移行、配布更新、電源断、全OSの動作保証ではない。それらは#13/#16で扱う。
 
 2026-10-13の結果: `npm run check`は74 tests・lint/typecheck/format成功。実Chromium headlessの一連フローと、Brave headedの追加競合/幅600px表示検証が成功。独立レビューで破損データの復旧導線と州選択肢の説明を修正し、再レビューで残るblocking findingsなし。レビュアーも74 testsを独立実行した。
+
+追加回帰検証: create/update/unlock/changePasswordの実リクエスト送信を一時停止し、可視入力・選択欄と全プロフィール欄の無効化を確認する。解除欄はfocus/キーボードでも変更できないこと、完了後とDBA・事業形態・住所同一の切替後は条件に応じたdisabledへ戻ることを検証する。保存・PW変更時にプロフィール画面を隠す既存仕様も維持する。

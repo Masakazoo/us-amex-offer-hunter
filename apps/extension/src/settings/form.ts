@@ -236,6 +236,7 @@ export function readFields(
 export function writeFields(
   views: Map<string, FieldView>,
   profile: FullProfile,
+  busy: boolean,
 ): void {
   for (const [key, view] of views)
     for (const control of view.controls) {
@@ -246,15 +247,18 @@ export function writeFields(
           control.value === (profile[key] ?? '');
       else control.value = profile[key] ?? '';
     }
-  updateConditions(views);
+  updateConditions(views, busy);
 }
-export function updateConditions(views: Map<string, FieldView>): void {
+export function updateConditions(
+  views: Map<string, FieldView>,
+  busy: boolean,
+): void {
   const values = readFields(views);
   for (const [key, view] of views) {
     const hidden = inactive(key, values);
     view.wrapper.hidden = hidden;
     for (const control of view.controls) {
-      control.disabled = hidden;
+      control.disabled = busy || hidden;
       control.required =
         !hidden &&
         !view.spec.optional &&

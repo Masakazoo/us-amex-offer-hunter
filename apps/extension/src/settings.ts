@@ -130,7 +130,7 @@ function wipe() {
   ])
     element(id).textContent = '';
   showFieldErrors(views, [], element('error-summary'), selectSection);
-  updateConditions(views);
+  updateConditions(views, busy);
 }
 function adopt(next: Status) {
   if (
@@ -194,12 +194,7 @@ function render() {
     if (node.closest('#reset-dialog')) continue;
     node.disabled = busy;
   }
-  updateConditions(views);
-  if (busy)
-    for (const node of form.querySelectorAll<
-      HTMLInputElement | HTMLSelectElement
-    >('input,select'))
-      node.disabled = true;
+  updateConditions(views, busy);
   button('change-password-submit').disabled = busy || dirty || !editing;
   button('save-profile').disabled = busy || (!creating && !dirty) || !canEdit;
   button('confirm-reset').disabled =
@@ -339,7 +334,7 @@ async function loadEditor() {
     throw new RequestError('CONFLICT');
   const profile = fullProfileSchema.safeParse(reply.profile);
   if (!profile.success) throw new RequestError('AUTH_OR_CORRUPT');
-  writeFields(views, profile.data);
+  writeFields(views, profile.data, busy);
   credentials = { revision: next.revision, epoch: next.epoch };
   creating = false;
   dirty = false;
@@ -374,7 +369,7 @@ form.addEventListener('input', (event) => {
   const target = event.target as HTMLInputElement;
   if (views.has(target.name)) {
     dirty = true;
-    updateConditions(views);
+    updateConditions(views, busy);
   }
   render();
 });
@@ -544,5 +539,5 @@ window.addEventListener('pageshow', (event) => {
     void reconcile();
   }
 });
-updateConditions(views);
+updateConditions(views, busy);
 void reconcile();
