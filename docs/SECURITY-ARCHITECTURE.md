@@ -6,7 +6,7 @@
 
 推奨は **Web Crypto / AES-256-GCM / PBKDF2-HMAC-SHA-256 600,000回**。永続先は `chrome.storage.local` の暗号文レコード1個。解除中だけ `chrome.storage.session` に32-byte復号素材をbase64で置き、操作ごとに非抽出可能なCryptoKeyへimportする。パスワード・平文プロフィールをsessionへ保存しない。
 
-2026-10-13にユーザーがこの基本設計を承認。通常Google Chrome 155で拡張再読込、無効化→再有効化、メニュー終了→同じprofileで再起動した際の再認証を確認した。Worker強制停止後の保持と実Popup開閉も確認。最新の証拠・簡潔な再現手順・後続検証は [CHROME-VALIDATION.md](CHROME-VALIDATION.md) を参照。PR #18のマージと#11着手は別途ユーザー判断。PoCコードをそのまま本番へ移植しない。
+2026-10-13にユーザーがこの基本設計を承認。通常Google Chrome 155で拡張再読込、無効化→再有効化、メニュー終了→同じprofileで再起動した際の再認証を確認した。Worker強制停止後の保持と実Popup開閉も確認。最新の証拠・簡潔な再現手順・後続検証は [CHROME-VALIDATION.md](CHROME-VALIDATION.md) を参照。PR #18はユーザー承認により2026-10-13にマージ済み。#11実装契約は[暗号化プロフィール保管層](ENCRYPTED-PROFILE-STORAGE.md)を参照。PoCコードをそのまま本番へ移植しない。
 
 ## 2. 暗号方式・KDF比較
 

@@ -23,3 +23,4 @@ jobs:
       - run: npm run test:security
         env:
           SECURITY_BROWSER: chromium
+      - run: npm run test:vault
