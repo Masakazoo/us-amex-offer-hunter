@@ -362,6 +362,31 @@ try {
       (
         chrome.extension
           .getViews({ type: 'popup' })[0]!
+          .document.getElementById('lock') as HTMLButtonElement
+      ).click(),
+    );
+    await settings.waitForFunction(
+      () =>
+        chrome.extension
+          .getViews({ type: 'popup' })[0]
+          ?.document.getElementById('vault-state')?.textContent === 'ロック中',
+    );
+    await settings.evaluate((pw) => {
+      const doc = chrome.extension.getViews({ type: 'popup' })[0]!.document;
+      (doc.getElementById('password') as HTMLInputElement).value = pw;
+      (doc.getElementById('unlock-form') as HTMLFormElement).requestSubmit();
+    }, pw);
+    await settings.waitForFunction(
+      () =>
+        chrome.extension
+          .getViews({ type: 'popup' })[0]
+          ?.document.getElementById('vault-state')?.textContent === '解除済み',
+    );
+    assert.equal(await target.locator('#email').inputValue(), '');
+    await settings.evaluate(() =>
+      (
+        chrome.extension
+          .getViews({ type: 'popup' })[0]!
           .document.getElementById('fill') as HTMLButtonElement
       ).click(),
     );
@@ -419,6 +444,12 @@ try {
       /PAGE_ERROR|SENTINEL|000000000|Synthetic password/.test(s),
     ),
     false,
+  );
+  assert.equal(
+    await target.evaluate(
+      () => (window as typeof window & { submissions: number }).submissions,
+    ),
+    0,
   );
   assert.equal(unexpectedRequests, 0);
   console.log(

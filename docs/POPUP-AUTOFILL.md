@@ -50,4 +50,4 @@ PROBE_TEST_BROWSER=chrome npm run test:extension
 
 本人の明示承認後、通常ビルドを専用の確認環境に読み込む。対応URLを本人が開き、設定と暗号化保存、解除だけでは未入力、本人クリックによる入力、結果と実フォームの内容を手元で確認する。未知ラベル・選択肢・住所候補は手動確認し、未対応のまま記録する。記録は固定項目名と原因だけにし、PII・PW・URL query・HAR・スクリーンショットをGit/PR/CIへ出さない。申込送信・同意・CAPTCHAをテストの自動処理に含めない。旧データの移行・削除は別途本人判断とする。
 
-2026-10-13の検証状況: 93 tests・lint/typecheck/format、Chromium MV3統合とDOM競合回帰が成功。独立レビューで非同期後のDOM再検査、住所候補、最終結果保存の競合を修正し、残るblocking findingsなし。通常ChromeのHTML画面経由の一連操作はネイティブPopup段階まで到達したが、Macの画面ロックによりaction Popupを開けず、その最終確認は未完了。
+2026-10-13の検証状況: 93 tests・lint/typecheck/format、Chromium MV3統合とDOM競合回帰が成功。独立レビューで非同期後のDOM再検査、住所候補、最終結果保存の競合を修正し、残るblocking findingsなし。通常Chromeのネイティブaction Popupでも手動ロック・解除（解除だけでは未入力）・明示入力・途中閉鎖後の処理継続・結果再表示が成功。ChromeのネイティブPopupにはsender.documentId/frameId/tabが付かないため、拡張ID・origin・完全一致のPopup URLを検証したうえで、この形のみ許可する。設定画面と申込文書のdocument束縛は維持する。

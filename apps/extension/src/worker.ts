@@ -1,4 +1,5 @@
-import { AutofillController, isExtensionUI } from './autofill-controller.js';
+import { AutofillController } from './autofill-controller.js';
+import { isExtensionUI } from './extension-ui.js';
 import { ProfileVault } from './vault/service.js';
 import { handleVaultMessage } from './vault/protocol.js';
 

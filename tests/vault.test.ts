@@ -567,6 +567,35 @@ describe('worker message boundary', () => {
         id,
       ),
     ).toEqual({ ok: false, error: 'UNAUTHORIZED' });
+    const nativePopup = {
+      id,
+      origin: `chrome-extension://${id}`,
+      url: `chrome-extension://${id}/popup.html`,
+    };
+    expect((await handleVaultMessage(vault, command, nativePopup, id)).ok).toBe(
+      true,
+    );
+    expect(
+      await handleVaultMessage(
+        vault,
+        {
+          channel: 'profile-vault-v1',
+          op: 'readForEditing',
+          revision: crypto.randomUUID(),
+          epoch: crypto.randomUUID(),
+        },
+        nativePopup,
+        id,
+      ),
+    ).toEqual({ ok: false, error: 'UNAUTHORIZED' });
+    expect(
+      await handleVaultMessage(
+        vault,
+        command,
+        { ...nativePopup, url: sender.url },
+        id,
+      ),
+    ).toEqual({ ok: false, error: 'UNAUTHORIZED' });
     expect(
       JSON.stringify(await handleVaultMessage(vault, command, sender, id)),
     ).not.toMatch(/raw|SENTINEL|password/);

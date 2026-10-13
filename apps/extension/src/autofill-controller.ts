@@ -1,3 +1,4 @@
+import { isExtensionUI } from './extension-ui.js';
 import { z } from 'zod';
 import { fullFieldSpecs } from './full-profile.js';
 import { runFullAutofill } from './full-autofill.js';
@@ -95,20 +96,6 @@ const commands = z.discriminatedUnion('op', [
     })
     .strict(),
 ]);
-export function isExtensionUI(
-  sender: chrome.runtime.MessageSender,
-  id: string,
-  page: 'popup' | 'settings',
-): boolean {
-  return (
-    sender.id === id &&
-    sender.origin === `chrome-extension://${id}` &&
-    sender.url === `chrome-extension://${id}/${page}.html` &&
-    !!sender.documentId &&
-    !sender.tab?.incognito &&
-    (sender.frameId === undefined || sender.frameId === 0)
-  );
-}
 export class AutofillController {
   unlocking = false;
   private record: RunRecord | null = null;
