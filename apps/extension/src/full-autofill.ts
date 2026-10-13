@@ -142,6 +142,22 @@ export async function runFullAutofill(input: {
         return /^\d+(?:\.\d+)?$/.test(n) ? String(Number(n)) : value;
       }
       if (spec.format === 'date') return value.replace(/\//g, '-');
+      if (
+        [
+          'businessNameOnCard',
+          'nameOnCard',
+          'businessAddressLine1',
+          'businessAddressLine2',
+          'businessCity',
+          'addressLine1',
+          'addressLine2',
+          'city',
+        ].includes(spec.key)
+      )
+        return value
+          .replace(/[a-z]/g, (letter) => letter.toUpperCase())
+          .trim()
+          .replace(/\s+/g, ' ');
       return value;
     },
     normalizeAddress(value: string) {
@@ -542,7 +558,14 @@ export async function runFullAutofill(input: {
         continue;
       }
       if (el.value !== '') {
-        result.status = el.value === next ? 'matched' : 'existing-value';
+        result.status = (
+          isSelect
+            ? el.value === next
+            : helpers.normalized(el.value, spec) ===
+              helpers.normalized(value, spec)
+        )
+          ? 'matched'
+          : 'existing-value';
         continue;
       }
       el.focus();
@@ -551,7 +574,14 @@ export async function runFullAutofill(input: {
         continue;
       }
       if (el.value !== '') {
-        result.status = el.value === next ? 'matched' : 'existing-value';
+        result.status = (
+          isSelect
+            ? el.value === next
+            : helpers.normalized(el.value, spec) ===
+              helpers.normalized(value, spec)
+        )
+          ? 'matched'
+          : 'existing-value';
         continue;
       }
       if (isSelect) {

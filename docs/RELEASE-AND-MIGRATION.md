@@ -107,3 +107,5 @@ Worker停止、拡張再読込、ブラウザプロセス終了は別の事象�
 本人による拡張再読込・解除後、CodexがネイティブPopupから明示入力を実行。申込送信・同意・CAPTCHAは操作していない。修正版反映後の結果は17 filled / 2 matched / 7 conditional / 7 review / 3 failure。ZIPと事業/携帯電話はfilled、事業City/Stateはmatchedを確認。自宅住所はサイト側の同住所処理で非空・disabled・エラーなしになった。値そのものを記録せず、固定項目名・状態と空欄/無効のbooleanで照合した。
 
 残ったfailureはbusinessNameOnCardとbusinessAddressLine1のchanged、numberOfEmployeesのvalidation-error。従業員数の公開エラー文は1〜999を要求していたため、自動入力前の形式検査と案内へ反映する。保存値を推定・補正しない。nameOnCardは既存値保持、6任意項目は登録値なし。全36項目の成功や完全一致は未達であり、未登録値を創作して件数を埋めない。
+
+本人承認後、カード表示用の事業名・氏名と住所行/CityのASCII英字大小・前後/連続空白だけを一致扱いにした。比較だけを変更し、保存値・既存入力を変更しない。合成DOMで既存値保持、サイトによる入力後整形、略記/番地/非ASCII文字差の拒否を検証する。この追加修正を反映した実フォーム再試験は未実施。

@@ -68,6 +68,55 @@ try {
     });
     return { ...result, fields: result.fields.filter((f) => f.field === key) };
   }
+  // Approved comparison policy is narrow and never rewrites existing values.
+  for (const key of [
+    'businessNameOnCard',
+    'nameOnCard',
+    'businessAddressLine1',
+    'businessAddressLine2',
+    'businessCity',
+    'addressLine1',
+    'addressLine2',
+    'city',
+  ]) {
+    await reset();
+    const existing = '  TEST   PLACE  ';
+    await page.locator(`#${key}`).fill(existing);
+    const result = await run(key, 'test place');
+    assert.equal(result.fields[0]!.status, 'matched', key);
+    assert.equal(await page.locator(`#${key}`).inputValue(), existing, key);
+  }
+  for (const [key, existing, requested] of [
+    ['businessAddressLine1', '12 TEST ST', '12 TEST STREET'],
+    ['businessAddressLine1', '112 TEST ST', '12 TEST ST'],
+    ['businessNameOnCard', 'STRASSE', 'Straße'],
+    ['firstName', 'TEST', 'test'],
+  ]) {
+    await reset();
+    await page.locator(`#${key}`).fill(existing!);
+    const result = await run(key!, requested!);
+    assert.equal(result.fields[0]!.status, 'existing-value', key);
+    assert.equal(await page.locator(`#${key}`).inputValue(), existing, key);
+  }
+  for (const key of [
+    'businessNameOnCard',
+    'nameOnCard',
+    'businessAddressLine1',
+  ]) {
+    await reset();
+    await page.locator(`#${key}`).evaluate((element) => {
+      element.addEventListener('blur', () => {
+        const input = element as HTMLInputElement;
+        input.value = `  ${input.value.toUpperCase().replace(/ /g, '   ')}  `;
+      });
+    });
+    const result = await run(key, 'test place');
+    assert.equal(result.fields[0]!.status, 'filled', key);
+    assert.equal(
+      await page.locator(`#${key}`).inputValue(),
+      '  TEST   PLACE  ',
+    );
+  }
   await reset();
   await page.locator('#sameAddress').check();
   await page.evaluate(() => {
