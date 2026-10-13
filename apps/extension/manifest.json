@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "minimum_chrome_version": "121",
-  "name": "Amex Autofill \u2014 Local MVP",
+  "name": "Amex Autofill — Local MVP",
   "version": "0.3.0",
-  "description": "\u30ed\u30fc\u30ab\u30eb\u6a21\u64ec\u30d5\u30a9\u30fc\u30e0\u7528\u306eAutofill\u691c\u8a3c\u7248\u3002\u5b9f\u30b5\u30a4\u30c8\u306b\u306f\u5165\u529b\u3057\u307e\u305b\u3093\u3002",
+  "description": "ローカル模擬フォーム用のAutofill検証版。実サイトには入力しません。",
   "permissions": ["storage", "scripting"],
   "background": {
     "service_worker": "worker.js",
@@ -16,5 +16,9 @@
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'none'; connect-src 'none'"
   },
-  "incognito": "not_allowed"
+  "incognito": "not_allowed",
+  "options_ui": {
+    "page": "settings.html",
+    "open_in_tab": true
+  }
 }

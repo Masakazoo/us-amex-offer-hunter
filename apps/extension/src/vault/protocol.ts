@@ -1,6 +1,11 @@
 import { z } from 'zod';
-import { VaultError, fail } from './crypto.js';
-import { ProfileVault } from './service.js';
+import { VaultError, fail, type ErrorCode } from './crypto.js';
+import { ProfileVault, type Status } from './service.js';
+import type { FullProfile } from '../full-profile.js';
+
+export type VaultReply =
+  | { ok: true; status?: Status; profile?: FullProfile; revision?: string }
+  | { ok: false; error: ErrorCode };
 
 const credentials = { revision: z.uuid(), epoch: z.uuid() };
 const password = z.string().min(1).max(1024);
@@ -25,6 +30,13 @@ const commands = z.discriminatedUnion('op', [
       op: z.literal('create'),
       password,
       profile: z.unknown(),
+    })
+    .strict(),
+  z
+    .object({
+      channel: z.literal('profile-vault-v1'),
+      op: z.literal('readForEditing'),
+      ...credentials,
     })
     .strict(),
   z
@@ -56,7 +68,7 @@ export async function handleVaultMessage(
   input: unknown,
   sender: chrome.runtime.MessageSender,
   extensionId: string,
-): Promise<unknown> {
+): Promise<VaultReply> {
   try {
     const popup = `chrome-extension://${extensionId}/popup.html`;
     const settings = `chrome-extension://${extensionId}/settings.html`;
@@ -87,6 +99,13 @@ export async function handleVaultMessage(
         return {
           ok: true,
           revision: await vault.create(c.profile, c.password),
+        };
+      case 'readForEditing':
+        // Plaintext may only return over this settings document's own request.
+        if (!Number.isInteger(sender.tab?.id)) fail('UNAUTHORIZED');
+        return {
+          ok: true,
+          profile: await vault.readForEditing(c.revision, c.epoch),
         };
       case 'update':
         return {

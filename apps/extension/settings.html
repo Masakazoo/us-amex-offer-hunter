@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>プロフィール設定 | Amex Autofill</title>
+    <link rel="stylesheet" href="settings.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">A</span>
+          <div>Amex Autofill<small>Business Platinum</small></div>
+        </div>
+        <p class="sidebar-label">プロフィール</p>
+        <nav id="sections" aria-label="設定の区分"></nav>
+        <div class="sidebar-note">
+          <span aria-hidden="true">◇</span>
+          <p>この端末に暗号化して保存。<br />同期・外部送信は行いません。</p>
+        </div>
+      </aside>
+      <main>
+        <header class="page-header">
+          <div>
+            <p class="eyebrow">PROFILE SETTINGS</p>
+            <h1>プロフィール設定</h1>
+            <p class="subtitle">申込に使用する情報を、一か所で管理します。</p>
+          </div>
+          <div class="status-actions">
+            <span id="vault-status" class="status-pill">確認中</span
+            ><button id="lock" class="quiet" type="button" hidden>
+              ロック
+            </button>
+          </div>
+        </header>
+        <div id="notice" role="status" aria-live="polite" hidden></div>
+        <section id="recovery" class="card recovery" hidden>
+          <h2>安全のため、拡張を再読み込みしてください</h2>
+          <p>
+            保存領域の操作を確認できませんでした。ロックが完了したとは判断できません。拡張を再読み込みしてから、設定を開き直してください。
+          </p>
+          <button id="reload-extension" type="button">拡張を再読み込み</button>
+        </section>
+        <section id="unlock-panel" class="card unlock-card" hidden>
+          <div class="lock-symbol" aria-hidden="true">◇</div>
+          <h2>登録情報を編集</h2>
+          <p id="unlock-description">パスワードでロックを解除してください。</p>
+          <form id="unlock-form" autocomplete="off" novalidate>
+            <label for="unlock-password"
+              >マスターパスワード<span class="english"
+                >Master password</span
+              ></label
+            >
+            <div class="secret-input">
+              <input
+                id="unlock-password"
+                type="password"
+                maxlength="1024"
+                autocomplete="current-password"
+              /><button
+                type="button"
+                class="reveal quiet"
+                data-for="unlock-password"
+                aria-pressed="false"
+              >
+                表示
+              </button>
+            </div>
+            <p id="unlock-error" class="field-error" role="alert"></p>
+            <label class="checkline"
+              ><input
+                id="keep-unlocked"
+                type="checkbox"
+                checked
+              />Chrome終了までロック解除を保持</label
+            >
+            <p class="muted small">
+              ウィンドウを閉じても、Chromeがバックグラウンドで動いている間は解除が続く場合があります。確実にロックするには「ロック」を押してください。拡張の再読込・無効化・更新などでも再認証が必要です。
+            </p>
+            <button id="unlock-submit" class="primary" type="submit">
+              解除して編集
+            </button>
+          </form>
+          <button id="open-editor" class="primary" type="button" hidden>
+            編集を開く
+          </button>
+          <button id="forgot-password" type="button" class="text-button">
+            パスワードを忘れた場合
+          </button>
+        </section>
+        <section id="unavailable-panel" class="card" hidden>
+          <h2>登録情報を開けません</h2>
+          <p>
+            データを自動で上書きしたり、削除したりすることはありません。状態を再確認するか、セキュリティから初期化できます。
+          </p>
+          <button id="refresh-status" type="button">状態を再確認</button>
+        </section>
+        <p id="checking" class="muted" hidden>解除状態を確認しています…</p>
+        <form id="profile-form" autocomplete="off" novalidate hidden>
+          <div id="error-summary" role="alert" tabindex="-1" hidden></div>
+          <div id="profile-panels"></div>
+          <section
+            id="panel-security"
+            class="card panel"
+            aria-labelledby="heading-security"
+            hidden
+          >
+            <h2 id="heading-security">セキュリティ <span>Security</span></h2>
+            <p class="muted">パスワードと登録データを管理します。</p>
+            <div id="new-password-panel">
+              <h3>マスターパスワードを作成</h3>
+              <p class="muted">
+                12文字以上の、長く一意なパスフレーズをおすすめします。文字種の制限はありません。空白もそのまま使われます。
+              </p>
+              <label for="new-password"
+                >マスターパスワード<span class="english"
+                  >Master password · 必須</span
+                ></label
+              >
+              <div class="secret-input">
+                <input
+                  id="new-password"
+                  type="password"
+                  maxlength="1024"
+                  autocomplete="new-password"
+                /><button
+                  type="button"
+                  class="reveal quiet"
+                  data-for="new-password"
+                  aria-pressed="false"
+                >
+                  表示
+                </button>
+              </div>
+              <label for="confirm-password"
+                >パスワードを確認<span class="english"
+                  >Confirm password · 必須</span
+                ></label
+              >
+              <div class="secret-input">
+                <input
+                  id="confirm-password"
+                  type="password"
+                  maxlength="1024"
+                  autocomplete="new-password"
+                /><button
+                  type="button"
+                  class="reveal quiet"
+                  data-for="confirm-password"
+                  aria-pressed="false"
+                >
+                  表示
+                </button>
+              </div>
+              <p id="new-password-error" class="field-error" role="alert"></p>
+            </div>
+            <div id="change-password-panel" hidden>
+              <h3>マスターパスワードを変更</h3>
+              <p class="muted">
+                変更後はロックされます。12文字以上の長く一意なパスフレーズを設定してください。
+              </p>
+              <label for="change-password"
+                >新しいパスワード<span class="english"
+                  >New password</span
+                ></label
+              >
+              <div class="secret-input">
+                <input
+                  id="change-password"
+                  type="password"
+                  maxlength="1024"
+                  autocomplete="new-password"
+                /><button
+                  type="button"
+                  class="reveal quiet"
+                  data-for="change-password"
+                  aria-pressed="false"
+                >
+                  表示
+                </button>
+              </div>
+              <label for="change-confirm"
+                >新しいパスワードを確認<span class="english"
+                  >Confirm new password</span
+                ></label
+              >
+              <div class="secret-input">
+                <input
+                  id="change-confirm"
+                  type="password"
+                  maxlength="1024"
+                  autocomplete="new-password"
+                /><button
+                  type="button"
+                  class="reveal quiet"
+                  data-for="change-confirm"
+                  aria-pressed="false"
+                >
+                  表示
+                </button>
+              </div>
+              <p
+                id="change-password-error"
+                class="field-error"
+                role="alert"
+              ></p>
+              <p id="save-first" class="muted" hidden>
+                先にプロフィールの変更を保存してください。
+              </p>
+              <button id="change-password-submit" type="button">
+                パスワードを変更
+              </button>
+            </div>
+            <div class="security-note">
+              <h3>パスワードを忘れた場合</h3>
+              <p>
+                パスワードは復旧できません。登録情報をすべて削除し、新しく登録する必要があります。
+              </p>
+            </div>
+          </section>
+          <footer id="save-bar">
+            <div>
+              <strong id="draft-status">未登録</strong>
+              <p id="save-help">
+                情報を入力し、セキュリティでパスワードを設定してください。
+              </p>
+            </div>
+            <button id="save-profile" class="primary" type="submit">
+              暗号化して保存
+            </button>
+          </footer>
+        </form>
+        <section id="data-management" class="card danger-zone" hidden>
+          <div>
+            <h2>登録データを初期化</h2>
+            <p>
+              暗号化された登録情報をこの端末から削除します。削除すると元に戻せません。
+            </p>
+          </div>
+          <button id="reset-profile" class="danger" type="button">
+            登録情報を削除
+          </button>
+        </section>
+        <p class="page-note">
+          この設定画面から申込フォームへの入力・送信は行いません。
+        </p>
+      </main>
+    </div>
+    <dialog
+      id="reset-dialog"
+      aria-labelledby="reset-title"
+      aria-describedby="reset-description"
+    >
+      <h2 id="reset-title">登録情報をすべて削除しますか？</h2>
+      <p id="reset-description">
+        この設定画面で登録したプロフィールと解除状態を削除します。元に戻せません。編集中の内容も失われます。
+      </p>
+      <label class="checkline"
+        ><input
+          id="reset-acknowledge"
+          type="checkbox"
+        />元に戻せないことを理解しました</label
+      >
+      <div class="dialog-actions">
+        <button id="cancel-reset" type="button" autofocus>キャンセル</button
+        ><button id="confirm-reset" class="danger" type="button" disabled>
+          すべて削除する
+        </button>
+      </div>
+    </dialog>
+    <script type="module" src="settings.js"></script>
+  </body>
+</html>

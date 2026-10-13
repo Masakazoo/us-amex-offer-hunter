@@ -293,6 +293,95 @@ describe('vault operations and boundaries', () => {
     ).rejects.toThrow('RATE_LIMITED');
   });
 });
+describe('settings-only editing read', () => {
+  it('reads authenticated values without consuming one-shot fill and still revokes on save', async () => {
+    const { vault, local, session } = setup();
+    await vault.create(fullSentinelProfile(), PASSWORD);
+    const s = await unlock(vault, session, PASSWORD, false);
+    const stored = structuredClone(local.values);
+    const material = structuredClone(session.values);
+    expect(await vault.readForEditing(s.revision!, s.epoch!)).toEqual(
+      fullSentinelProfile(),
+    );
+    expect(local.values).toEqual(stored);
+    expect(session.values).toEqual(material);
+    await vault.update(s.revision!, s.epoch!, {
+      ...fullSentinelProfile(),
+      firstName: 'EDITED',
+    });
+    expect((await vault.status()).unlocked).toBe(false);
+    await expect(vault.readForEditing(s.revision!, s.epoch!)).rejects.toThrow(
+      'CONFLICT',
+    );
+  });
+  it('never returns decrypted values if a lock arrives during decryption', async () => {
+    const { vault, session } = setup();
+    await vault.create(fullSentinelProfile(), PASSWORD);
+    const s = await unlock(vault, session);
+    let release!: () => void, entered!: () => void;
+    const gate = new Promise<void>((r) => {
+      release = r;
+    });
+    const started = new Promise<void>((r) => {
+      entered = r;
+    });
+    const original = crypto.subtle.decrypt.bind(crypto.subtle);
+    vi.spyOn(crypto.subtle, 'decrypt').mockImplementation(async (...args) => {
+      entered();
+      await gate;
+      return original(...args);
+    });
+    const reading = vault.readForEditing(s.revision!, s.epoch!);
+    await started;
+    const locking = vault.lock();
+    release();
+    await expect(reading).rejects.toThrow('CANCELLED');
+    await locking;
+  });
+  it('only responds with plaintext to the exact settings tab, never popup, query URLs or content senders', async () => {
+    const { vault, session } = setup();
+    await vault.create(fullSentinelProfile(), PASSWORD);
+    const s = await unlock(vault, session);
+    const id = 'syntheticextension';
+    const sender = {
+      id,
+      origin: `chrome-extension://${id}`,
+      url: `chrome-extension://${id}/settings.html`,
+      documentId: 'synthetic-document',
+      tab: { id: 1, incognito: false },
+    } as chrome.runtime.MessageSender;
+    const command = {
+      channel: 'profile-vault-v1',
+      op: 'readForEditing',
+      revision: s.revision,
+      epoch: s.epoch,
+    };
+    for (const unsafe of [
+      { ...sender, url: `chrome-extension://${id}/popup.html` },
+      { ...sender, url: sender.url + '?spoof' },
+      { ...sender, url: 'https://example.test' },
+      { ...sender, tab: undefined },
+    ]) {
+      const reply = await handleVaultMessage(
+        vault,
+        command,
+        unsafe as chrome.runtime.MessageSender,
+        id,
+      );
+      expect(reply).toEqual({ ok: false, error: 'UNAUTHORIZED' });
+      expect(JSON.stringify(reply)).not.toContain('SENTINEL');
+    }
+    expect(await handleVaultMessage(vault, command, sender, id)).toEqual({
+      ok: true,
+      profile: fullSentinelProfile(),
+    });
+    await vault.lock();
+    expect(await handleVaultMessage(vault, command, sender, id)).toEqual({
+      ok: false,
+      error: 'LOCKED',
+    });
+  });
+});
 describe('storage failures', () => {
   it.each(['before', 'after'] as const)(
     'reports ambiguous %s-write failure without rollback',

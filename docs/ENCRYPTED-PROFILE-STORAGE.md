@@ -28,9 +28,9 @@
 
 `withProfile`の呼出側はtokenのtabId/documentIdを実際の対象に照合する`verifyDocument`を提供し、`consume`内でも**値を対象へ渡す直前に`assertCurrent()`をawait**する。対象検証と注入の統合は#13。コールバックや任意コードはmessageから受けない。保持ONでも同sessionで128回使用後は再解除が必要。
 
-production Workerのmessageはchannel `profile-vault-v1`とstrict commandのみ。sender ID/origin/document ID/top-frame/incognitoを検査し、query/hashを含まない完全一致の拡張URLだけ許可する。popup.htmlはstatus/unlock/lockのみ、将来のsettings.htmlは登録/更新/PW変更/resetも可能。鍵/プロフィール丸ごとを返すmessageは存在しない。設定の編集読込は#12でこの内部契約から適切なdocumentへ限定して追加する。
+production Workerのmessageはchannel `profile-vault-v1`とstrict commandのみ。sender ID/origin/document ID/top-frame/incognitoを検査し、query/hashを含まない完全一致の拡張URLだけ許可する。popup.htmlはstatus/unlock/lockのみ、将来のsettings.htmlは登録/更新/PW変更/resetも可能。鍵を返すmessageは存在しない。#12では`readForEditing(revision,epoch)`を追加し、正規の設定タブからの要求だけへプロフィールを返す。popup/content scriptには返さない。読込後も設定タブ側で再照会してから表示する。[設定画面の契約](PROFILE-SETTINGS.md)を参照。
 
-現在のlegacy Popupは合成fixture用の既存7項目UIで、暗号化保管層へまだ接続していない。実プロフィールの登録に使用しない。#12/#13で製品フローへ接続する。本PRのテスト用settings.htmlやconsumerは`dist/vault-test`専用で、配布物`dist/extension`には含まれない。
+現在のlegacy Popupは合成fixture用の既存7項目UIで、暗号化保管層へまだ接続していない。#12の専用設定タブは暗号化保管層へ接続する。実プロフィールの登録に使用しない。#12/#13で製品フローへ接続する。本PRのテスト用settings.htmlやconsumerは`dist/vault-test`専用で、配布物`dist/extension`には含まれない。
 
 ## 障害・競合・復旧
 
